@@ -1,0 +1,18 @@
+
+{
+  "short_name": "DesignMind",
+  "name": "DesignMind: ИИ Дизайн Квиз",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3534/3534033.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2C3E50",
+  "background_color": "#fafafa",
+  "orientation": "portrait"
+}
