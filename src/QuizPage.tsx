@@ -26,7 +26,8 @@ import {
   ArrowLeft, 
   Copy, 
   LayoutDashboard, 
-  Settings 
+  Settings,
+  History
 } from 'lucide-react';
 
 declare global {
@@ -52,6 +53,7 @@ const QuizPage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -151,13 +153,17 @@ const QuizPage: React.FC = () => {
   const handleDeleteProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) return;
-    if (window.confirm('Вы уверены, что хотите удалить этот квиз?')) {
-      try {
-        await deleteDoc(doc(db, 'users', user.uid, 'projects', id));
-        showToast('Проект удален');
-      } catch (e) {
-        showToast('Ошибка удаления', 'error');
-      }
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!user || !deleteConfirmId) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'projects', deleteConfirmId));
+      showToast('Проект удален');
+      setDeleteConfirmId(null);
+    } catch (e) {
+      showToast('Ошибка удаления', 'error');
     }
   };
 
@@ -313,33 +319,35 @@ const QuizPage: React.FC = () => {
 
   const activeProject = projects.find(p => p.id === currentProjectId);
   const currentStepData = activeProject?.steps.find(s => s.id === currentStepId);
-  const progress = activeProject ? ((activeProject.steps.findIndex(s => s.id === currentStepId) + 1) / activeProject.steps.length) * 100 : 0;
+  const progress = activeProject && activeProject.steps.length > 0 
+    ? ((activeProject.steps.findIndex(s => s.id === currentStepId) + 1) / activeProject.steps.length) * 100 
+    : 0;
 
   if (!hasApiKey) {
     return (
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex flex-col items-center justify-center bg-white p-6 text-center space-y-8"
+        className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6 text-center space-y-8"
       >
-        <div className="w-24 h-24 bg-orange-50 text-orange-400 rounded-full flex items-center justify-center text-4xl shadow-sm mb-4">
+        <div className="w-24 h-24 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center text-4xl shadow-sm mb-4">
           <Sparkles className="w-12 h-12" />
         </div>
-        <h1 className="text-4xl md:text-6xl font-bold serif text-[#2C3E50]">DesignMind Pro</h1>
-        <p className="max-w-md text-gray-500 font-light leading-relaxed">Для работы с искусственным интеллектом выберите API-ключ из оплаченного Google Cloud проекта.</p>
-        <button onClick={handleSelectApiKey} className="bg-[#2C3E50] text-white px-12 py-6 rounded-full font-bold shadow-2xl hover:bg-black transition-all">Активировать доступ</button>
+        <h1 className="text-4xl md:text-6xl font-bold serif text-white">DesignMind Pro</h1>
+        <p className="max-w-md text-gray-400 font-light leading-relaxed">Для работы с искусственным интеллектом выберите API-ключ из оплаченного Google Cloud проекта.</p>
+        <button onClick={handleSelectApiKey} className="bg-orange-500 text-white px-12 py-6 rounded-full font-bold shadow-2xl hover:bg-orange-600 transition-all">Активировать доступ</button>
       </motion.div>
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white p-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6">
         <Loader2 className="w-16 h-16 text-orange-400 animate-spin mb-10" />
         <motion.h2 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-2xl font-bold text-[#2C3E50] serif text-center max-w-lg"
+          className="text-2xl font-bold text-white serif text-center max-w-lg"
         >
           {loadingStage}
         </motion.h2>
@@ -348,6 +356,15 @@ const QuizPage: React.FC = () => {
   }
 
   if (result) return <ResultView result={result} onRestart={() => {setResult(null); setCurrentProjectId(null);}} onRegenerate={handleRegenerate} />;
+
+  if (isEditMode && !activeProject && currentProjectId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6">
+        <Loader2 className="w-16 h-16 text-orange-400 animate-spin mb-10" />
+        <h2 className="text-2xl font-bold text-white serif">Загрузка редактора...</h2>
+      </div>
+    );
+  }
 
   if (!currentProjectId) {
     return (
@@ -382,7 +399,7 @@ const QuizPage: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => navigate('/')} className="bg-gray-100 text-[#2C3E50] px-10 py-6 rounded-full font-bold hover:bg-gray-200 transition-all flex items-center gap-2">
+              <button onClick={() => navigate('/')} className="bg-white text-[#2C3E50] border border-[#E8E2D9] px-10 py-6 rounded-full font-bold hover:bg-gray-50 transition-all flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
                 Главная
               </button>
@@ -406,24 +423,32 @@ const QuizPage: React.FC = () => {
                 onClick={() => { setCurrentProjectId(proj.id); setCurrentStepId(proj.steps[0].id); setSelections({}); setResult(null); setIsEditMode(false); }} 
                 className="group bg-white p-12 rounded-[4rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_40px_80px_-20px_rgba(44,62,80,0.15)] relative overflow-hidden flex flex-col min-h-[380px]"
               >
-                <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                  <button onClick={(e) => duplicateProject(proj.id, e)} className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm">
+                <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <button 
+                    onClick={(e) => duplicateProject(proj.id, e)} 
+                    className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                    title="Дублировать"
+                  >
                     <Copy className="w-4 h-4" />
                   </button>
-                  <button onClick={(e) => handleDeleteProject(proj.id, e)} className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-red-500 flex items-center justify-center shadow-sm">
+                  <button 
+                    onClick={(e) => handleDeleteProject(proj.id, e)} 
+                    className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-red-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                    title="Удалить"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-[#2C3E50] group-hover:text-white transition-all mb-12 shadow-sm">
+                <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-orange-500 group-hover:text-white transition-all mb-12 shadow-sm border border-gray-100">
                   <LayoutDashboard className="w-10 h-10" />
                 </div>
                 <h3 className="text-4xl font-bold text-[#2C3E50] mb-4 serif leading-tight">{proj.name}</h3>
-                <div className="mt-auto pt-8 border-t border-gray-50 flex items-center justify-between">
+                <div className="mt-auto pt-8 border-t border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <History className="w-3 h-3 text-gray-300" />
+                    <History className="w-3 h-3 text-gray-400" />
                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{proj.steps.length} ШАГОВ</p>
                   </div>
-                  <span className="text-orange-400 text-xs font-bold uppercase group-hover:translate-x-2 transition-transform flex items-center gap-1">
+                  <span className="text-orange-500 text-xs font-bold uppercase group-hover:translate-x-2 transition-transform flex items-center gap-1">
                     Старт <ChevronRight className="w-4 h-4" />
                   </span>
                 </div>
@@ -431,6 +456,41 @@ const QuizPage: React.FC = () => {
             ))}
           </motion.div>
         </div>
+
+        <AnimatePresence>
+          {deleteConfirmId && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center space-y-8"
+              >
+                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                  <Trash2 className="w-10 h-10" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-[#2C3E50] serif">Удалить проект?</h3>
+                  <p className="text-gray-400 text-sm font-light">Это действие нельзя будет отменить.</p>
+                </div>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setDeleteConfirmId(null)}
+                    className="flex-1 py-4 rounded-full border border-gray-100 text-gray-400 font-bold hover:bg-gray-50 transition-all"
+                  >
+                    Отмена
+                  </button>
+                  <button 
+                    onClick={confirmDelete}
+                    className="flex-1 py-4 rounded-full bg-red-500 text-white font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }

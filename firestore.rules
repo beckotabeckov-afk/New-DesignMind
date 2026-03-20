@@ -15,11 +15,9 @@ service cloud.firestore {
     //   - createdAt: string (required, ISO 8601)
     //   - role: string (required, 'user' or 'admin')
     //
-    // Collection: projects
+    // Collection: users/{userId}/projects
     // Document ID: {projectId}
     // Fields:
-    //   - id: string (required)
-    //   - userId: string (required, matches owner)
     //   - name: string (required, max 100 chars)
     //   - createdAt: number (required)
     //   - steps: list (required, max 50 steps)
@@ -67,11 +65,10 @@ service cloud.firestore {
     }
 
     function isValidProject(data) {
-      return hasOnlyAllowedFields(['id', 'userId', 'name', 'createdAt', 'steps']) &&
-             data.userId == request.auth.uid &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+      return hasOnlyAllowedFields(['name', 'createdAt', 'steps']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
              data.createdAt is number &&
-             data.steps is list && data.steps.size() <= 50;
+             data.steps is list && data.steps.size() <= 100;
     }
 
     // ===============================================================
@@ -82,6 +79,12 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
       allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
       allow delete: if isAdmin();
+
+      match /projects/{projectId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && isValidProject(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
     }
 
     match /projects/{projectId} {

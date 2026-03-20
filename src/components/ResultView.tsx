@@ -52,7 +52,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="bg-white/5 rounded-[4rem] p-10 md:p-16 text-white overflow-hidden shadow-2xl relative mb-12 avoid-break border border-white/5"
+      className="bg-white rounded-[4rem] p-10 md:p-16 text-[#2C3E50] overflow-hidden shadow-xl relative mb-12 avoid-break border border-[#E8E2D9]"
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         <div className="space-y-8 order-2 lg:order-1">
@@ -62,7 +62,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
               {title}
             </h3>
           </div>
-          <div className="h-px w-20 bg-white/20"></div>
+          <div className="h-px w-20 bg-gray-100"></div>
           <p className="text-sm text-gray-500 font-light leading-relaxed max-w-xs">
             {type.includes('МУДБОРД') 
               ? 'Коллаж отобранных материалов и текстур для тактильного восприятия концепции.' 
@@ -72,7 +72,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
         
         <div className="order-1 lg:order-2 relative">
           {url ? (
-            <div className="rounded-[3rem] overflow-hidden shadow-2xl border border-white/5 group aspect-video">
+            <div className="rounded-[3rem] overflow-hidden shadow-2xl border border-gray-100 group aspect-video">
               <img 
                 src={url} 
                 alt={title} 
@@ -81,9 +81,9 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
               />
             </div>
           ) : (
-            <div className="aspect-video bg-white/5 rounded-[3rem] flex flex-col items-center justify-center border border-white/5 space-y-4">
+            <div className="aspect-video bg-gray-50 rounded-[3rem] flex flex-col items-center justify-center border border-gray-100 space-y-4">
               <RefreshCw className="w-8 h-8 text-orange-500 animate-spin" />
-              <p className="text-gray-600 italic tracking-widest text-[10px] uppercase font-bold">Rendering Concept...</p>
+              <p className="text-gray-400 italic tracking-widest text-[10px] uppercase font-bold">Rendering Concept...</p>
             </div>
           )}
         </div>
@@ -111,7 +111,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
       <header className="text-center space-y-8 avoid-break relative">
         <button 
           onClick={() => window.location.href = '/'} 
-          className="no-print absolute top-0 left-0 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-white transition-all group"
+          className="no-print absolute top-0 left-0 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-[#2C3E50] transition-all group"
         >
           <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
           На главную
@@ -120,7 +120,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="inline-flex items-center gap-3 px-6 py-2 rounded-full border border-white/10 text-gray-400 text-[10px] font-black uppercase tracking-[0.5em] mb-4 no-print"
+          className="inline-flex items-center gap-3 px-6 py-2 rounded-full border border-gray-100 text-gray-400 text-[10px] font-black uppercase tracking-[0.5em] mb-4 no-print"
         >
           <Sparkles className="w-3 h-3 text-orange-500" />
           AI Architectural Portfolio
@@ -129,7 +129,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-6xl md:text-9xl font-bold serif text-white leading-none tracking-tighter"
+          className="text-6xl md:text-9xl font-bold serif text-[#2C3E50] leading-none tracking-tighter"
         >
           Design <span className="italic font-light text-orange-500">Suite</span>
         </motion.h1>
@@ -138,7 +138,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-gray-500 max-w-2xl mx-auto text-lg font-light leading-relaxed uppercase tracking-[0.3em] pt-4"
+          className="text-gray-400 max-w-2xl mx-auto text-lg font-light leading-relaxed uppercase tracking-[0.3em] pt-4"
         >
           Комплексная концепция Вашего будущего дома
         </motion.p>
@@ -171,8 +171,8 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
       {/* REFERENCES */}
       <section className="print-break py-10">
         <div className="flex items-center gap-10 mb-16 avoid-break">
-          <h2 className="text-[10px] font-black text-white uppercase tracking-[0.5em] whitespace-nowrap">Your Selection</h2>
-          <div className="h-px bg-white/10 flex-1"></div>
+          <h2 className="text-[10px] font-black text-[#2C3E50] uppercase tracking-[0.5em] whitespace-nowrap">Your Selection</h2>
+          <div className="h-px bg-gray-100 flex-1"></div>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
@@ -185,37 +185,37 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
               transition={{ delay: idx * 0.05 }}
               className="group avoid-break"
             >
-              <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 bg-white/5 border border-white/10 shadow-sm transition-all group-hover:shadow-lg group-hover:border-orange-500/30">
+              <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 bg-white border border-gray-100 shadow-sm transition-all group-hover:shadow-lg group-hover:border-orange-500/30">
                 {choice.image ? (
                   <img src={choice.image} alt={choice.label} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl bg-white/5 opacity-30">🏛️</div>
+                  <div className="w-full h-full flex items-center justify-center text-2xl bg-gray-50 opacity-30">🏛️</div>
                 )}
               </div>
               <p className="text-[8px] font-black uppercase tracking-widest text-orange-500 mb-1">{choice.stepTitle}</p>
-              <p className="text-sm font-bold text-white serif">{choice.label}</p>
+              <p className="text-sm font-bold text-[#2C3E50] serif">{choice.label}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* TECHNICAL BRIEF */}
-      <section className="print-break bg-white/5 rounded-[4rem] p-12 md:p-24 border border-white/10 shadow-sm print:border-none print:p-0">
+      <section className="print-break bg-white rounded-[4rem] p-12 md:p-24 border border-[#E8E2D9] shadow-sm print:border-none print:p-0">
         <div className="max-w-3xl mx-auto technical-brief-content relative">
           <button 
             onClick={copyToClipboard}
-            className="no-print absolute top-0 right-0 bg-white/5 text-gray-400 px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all flex items-center gap-2"
+            className="no-print absolute top-0 right-0 bg-gray-50 text-gray-400 px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-[#2C3E50] hover:text-white transition-all flex items-center gap-2"
           >
             {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             {copied ? 'Готово' : 'Копировать ТЗ'}
           </button>
           
           <header className="mb-16 avoid-break">
-            <h2 className="text-5xl md:text-8xl font-bold serif text-white mb-6 tracking-tighter">Brief</h2>
-            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.4em]">Expert Project Documentation</p>
+            <h2 className="text-5xl md:text-8xl font-bold serif text-[#2C3E50] mb-6 tracking-tighter">Brief</h2>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.4em]">Expert Project Documentation</p>
           </header>
 
-          <div className="prose prose-invert prose-xl max-w-none text-gray-300">
+          <div className="prose prose-xl max-w-none text-gray-600">
             {result.technicalAssignment.split('\n\n').map((paragraph, idx) => {
               const lines = paragraph.split('\n');
               return (
@@ -223,10 +223,10 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
                   {lines.map((line, lineIdx) => {
                     const trimmed = line.trim();
                     if (trimmed.startsWith('# ')) {
-                      return <h1 key={lineIdx} className="text-4xl md:text-6xl font-bold text-white mt-16 mb-10 serif leading-tight">{trimmed.replace('# ', '')}</h1>;
+                      return <h1 key={lineIdx} className="text-4xl md:text-6xl font-bold text-[#2C3E50] mt-16 mb-10 serif leading-tight">{trimmed.replace('# ', '')}</h1>;
                     }
                     if (trimmed.startsWith('## ')) {
-                      return <h2 key={lineIdx} className="text-2xl md:text-4xl font-bold text-white mt-14 mb-8 border-b border-white/10 pb-4 serif italic">{trimmed.replace('## ', '')}</h2>;
+                      return <h2 key={lineIdx} className="text-2xl md:text-4xl font-bold text-[#2C3E50] mt-14 mb-8 border-b border-gray-100 pb-4 serif italic">{trimmed.replace('## ', '')}</h2>;
                     }
                     if (trimmed.startsWith('### ')) {
                       return <h3 key={lineIdx} className="text-base md:text-lg font-black text-orange-500 mt-10 mb-6 uppercase tracking-[0.2em]">{trimmed.replace('### ', '')}</h3>;
@@ -240,7 +240,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
                       );
                     }
                     if (trimmed === '') return null;
-                    return <p key={lineIdx} className="mb-4 text-lg md:text-xl leading-relaxed text-gray-400 font-light">{line}</p>;
+                    return <p key={lineIdx} className="mb-4 text-lg md:text-xl leading-relaxed text-gray-500 font-light">{line}</p>;
                   })}
                 </div>
               );
@@ -260,14 +260,14 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
         </button>
         <button
           onClick={handlePrint}
-          className="group w-full md:w-auto px-12 py-6 border-2 border-white/10 text-white rounded-full font-bold hover:bg-white hover:text-black transition-all flex items-center justify-center gap-6 shadow-xl"
+          className="group w-full md:w-auto px-12 py-6 border-2 border-gray-100 text-[#2C3E50] rounded-full font-bold hover:bg-[#2C3E50] hover:text-white transition-all flex items-center justify-center gap-6 shadow-xl"
         >
           <Printer className="w-5 h-5" />
           Экспорт в PDF
         </button>
         <button
           onClick={onRestart}
-          className="w-full md:w-auto px-12 py-6 bg-white text-black rounded-full font-bold hover:bg-orange-500 hover:text-white transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-6"
+          className="w-full md:w-auto px-12 py-6 bg-[#2C3E50] text-white rounded-full font-bold hover:bg-black transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-6"
         >
           <Plus className="w-5 h-5" />
           Новый проект

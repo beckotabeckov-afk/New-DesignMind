@@ -68,7 +68,7 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
       {canGoBack && (
         <button 
           onClick={onBack} 
-          className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 font-bold text-xs uppercase tracking-widest transition-colors group"
+          className="flex items-center gap-2 text-gray-400 hover:text-[#2C3E50] mb-8 font-bold text-xs uppercase tracking-widest transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           Назад
@@ -82,7 +82,7 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
           className="flex items-center gap-3 mb-4"
         >
           <span className="h-1 w-12 bg-orange-500 rounded-full"></span>
-          <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-500">
+          <h2 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">
             {step.title}
           </h2>
         </motion.div>
@@ -91,7 +91,7 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-3xl md:text-5xl font-bold serif text-white leading-tight"
+          className="text-3xl md:text-5xl font-bold serif text-[#2C3E50] leading-tight"
         >
           {step.question}
         </motion.h3>
@@ -118,7 +118,7 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
               value={textValue}
               onChange={(e) => setTextValue(e.target.value)}
               placeholder="Введите название объекта..."
-              className="w-full text-2xl md:text-4xl font-bold serif border-b-2 border-white/10 py-6 bg-transparent outline-none focus:border-orange-500 transition-all placeholder:text-white/10 placeholder:font-light text-white"
+              className="w-full text-2xl md:text-4xl font-bold serif border-b-2 border-gray-100 py-6 bg-transparent outline-none focus:border-orange-500 transition-all placeholder:text-gray-200 placeholder:font-light text-[#2C3E50]"
             />
             <AnimatePresence>
               {textValue.trim() && (
@@ -128,7 +128,7 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
                   exit={{ opacity: 0, scale: 0.8 }}
                   type="button" 
                   onClick={() => setTextValue('')}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-white"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#2C3E50]"
                 >
                   <X className="w-6 h-6" />
                 </motion.button>
@@ -166,11 +166,11 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
                   w-full relative flex flex-col items-start p-5 md:p-6 rounded-[2.5rem] border-2 text-left transition-all duration-500
                   ${isSelected(option.label)
                     ? 'border-orange-500 bg-orange-500 text-white shadow-2xl scale-[1.02] z-10' 
-                    : 'border-white/5 bg-white/5 text-gray-300 hover:border-white/20 hover:bg-white/10'}
+                    : 'border-gray-100 bg-white text-[#2C3E50] hover:border-orange-200 hover:bg-orange-50/30'}
                 `}
               >
                 {option.image && (
-                  <div className="w-full aspect-[4/3] mb-6 overflow-hidden rounded-[2rem] bg-black/20 relative">
+                  <div className="w-full aspect-[4/3] mb-6 overflow-hidden rounded-[2rem] bg-gray-50 relative">
                     <img 
                       src={option.image} 
                       alt={option.label}
@@ -184,13 +184,13 @@ const QuizStep: React.FC<Props> = ({ step, onSelect, currentValue, onImageUpload
                   <div className="flex-1">
                     <span className="text-lg md:text-xl font-bold mb-1 block leading-tight">{option.label}</span>
                     {option.description && (
-                      <span className={`text-xs block font-medium leading-relaxed ${isSelected(option.label) ? 'text-orange-100' : 'text-gray-500'}`}>
+                      <span className={`text-xs block font-medium leading-relaxed ${isSelected(option.label) ? 'text-orange-100' : 'text-gray-400'}`}>
                         {option.description}
                       </span>
                     )}
                   </div>
                   {step.isMulti && (
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ml-4 ${isSelected(option.label) ? 'bg-white border-white' : 'border-white/10'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ml-4 ${isSelected(option.label) ? 'bg-white border-white' : 'border-gray-200'}`}>
                       {isSelected(option.label) && (
                         <Check className="w-4 h-4 text-orange-500" />
                       )}

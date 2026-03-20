@@ -99,22 +99,22 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-[#1A1A1A] rounded-[3.5rem] p-14 max-w-sm w-full shadow-2xl text-center space-y-8 border border-white/10"
+              className="bg-white rounded-[3.5rem] p-14 max-w-sm w-full shadow-2xl text-center space-y-8 border border-gray-100"
             >
-              <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
                 <Trash2 className="w-10 h-10" />
               </div>
-              <h3 className="text-3xl font-bold text-white serif">Удалить раздел?</h3>
+              <h3 className="text-3xl font-bold text-[#2C3E50] serif">Удалить раздел?</h3>
               <div className="flex flex-col gap-4">
                 <button 
                   onClick={() => { onSave(steps.filter(s => s.id !== stepToDelete)); setStepToDelete(null); }} 
-                  className="py-5 rounded-2xl bg-red-500 text-white font-black text-[11px] uppercase tracking-widest hover:bg-red-600 transition-all"
+                  className="py-5 rounded-2xl bg-red-500 text-white font-black text-[11px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
                 >
                   Да, удалить
                 </button>
                 <button 
                   onClick={() => setStepToDelete(null)} 
-                  className="py-5 rounded-2xl bg-white/5 text-gray-400 font-black text-[11px] uppercase tracking-widest hover:bg-white/10 transition-all"
+                  className="py-5 rounded-2xl bg-gray-50 text-gray-400 font-black text-[11px] uppercase tracking-widest hover:bg-gray-100 transition-all"
                 >
                   Отмена
                 </button>
@@ -128,26 +128,26 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap gap-8 justify-between items-center bg-white/5 p-10 rounded-[3rem] border border-white/10 shadow-sm backdrop-blur-sm"
+          className="flex flex-wrap gap-8 justify-between items-center bg-white p-10 rounded-[3rem] border border-[#E8E2D9] shadow-sm"
         >
           <div className="flex-1 min-w-[300px]">
-            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Название квиза</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Название квиза</label>
             <input 
               value={quizName} 
               onChange={(e) => onRename(e.target.value)} 
-              className="text-4xl md:text-5xl font-bold text-white serif bg-transparent outline-none w-full focus:border-orange-500 transition-all" 
+              className="text-4xl md:text-5xl font-bold text-[#2C3E50] serif bg-transparent outline-none w-full focus:border-orange-500 transition-all" 
             />
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={onExport} className="flex items-center gap-2 bg-white/5 text-gray-400 px-6 py-3 rounded-full font-bold text-[10px] uppercase border border-white/10 hover:bg-white/10 transition-all">
+            <button onClick={onExport} className="flex items-center gap-2 bg-gray-50 text-gray-400 px-6 py-3 rounded-full font-bold text-[10px] uppercase border border-gray-100 hover:bg-gray-100 transition-all">
               <Download className="w-3 h-3" />
               Экспорт
             </button>
-            <label className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-3 rounded-full font-bold text-[10px] uppercase cursor-pointer hover:bg-blue-500/20 transition-all">
+            <label className="flex items-center gap-2 bg-blue-50 text-blue-500 px-6 py-3 rounded-full font-bold text-[10px] uppercase cursor-pointer hover:bg-blue-100 transition-all">
               <Upload className="w-3 h-3" />
               Импорт <input type="file" accept=".json" className="hidden" onChange={onImport} />
             </label>
-            <button onClick={onExit} className="flex items-center gap-2 bg-orange-500 text-white px-8 py-3 rounded-full font-bold text-[10px] uppercase shadow-xl hover:bg-orange-600 transition-all">
+            <button onClick={onExit} className="flex items-center gap-2 bg-[#2C3E50] text-white px-8 py-3 rounded-full font-bold text-[10px] uppercase shadow-xl hover:bg-black transition-all">
               <Check className="w-3 h-3" />
               Готово
             </button>
@@ -172,26 +172,26 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                 onSave(newSteps);
                 setDraggedIndex(null); setDragOverIndex(null);
               }} 
-              className={`bg-white/5 p-10 rounded-[4rem] border-2 transition-all ${draggedIndex === index ? 'opacity-30' : 'border-white/10'} ${dragOverIndex === index ? 'border-orange-500 border-dashed' : 'hover:border-white/20'} relative shadow-sm group`}
+              className={`bg-white p-10 rounded-[4rem] border-2 transition-all ${draggedIndex === index ? 'opacity-30' : 'border-gray-100'} ${dragOverIndex === index ? 'border-orange-500 border-dashed' : 'hover:border-[#E8E2D9]'} relative shadow-sm group`}
             >
               
               <div className="absolute top-8 right-8 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => duplicateStep(index)} 
-                  className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 hover:text-blue-500 hover:bg-white/10 transition-all" 
+                  className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-gray-100 transition-all" 
                   title="Дублировать"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
                 <button 
                   onClick={() => steps.length > 1 ? setStepToDelete(step.id) : alert("Минимум 1 шаг")} 
-                  className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white/10 transition-all"
+                  className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-gray-100 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="absolute -left-4 top-10 w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center font-bold text-xl border-4 border-[#0A0A0A] shadow-lg cursor-move">
+              <div className="absolute -left-4 top-10 w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center font-bold text-xl border-4 border-[#fafafa] shadow-lg cursor-move">
                 <input 
                   type="text" 
                   value={editingNumber?.index === index ? editingNumber.value : index + 1} 
@@ -211,52 +211,52 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                   <input 
                     value={step.title} 
                     onChange={e => updateStep(step.id, { title: e.target.value })} 
-                    className="w-full p-4 bg-white/5 rounded-xl outline-none focus:ring-2 ring-orange-500/20 text-white transition-all" 
+                    className="w-full p-4 bg-gray-50 rounded-xl outline-none focus:ring-2 ring-orange-500/20 text-[#2C3E50] transition-all" 
                   />
                 </div>
                 <div className="md:col-span-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 flex items-center gap-2 mb-2">
+                  <label className="text-[9px] font-black uppercase text-gray-400 flex items-center gap-2 mb-2">
                     <ChevronRight className="w-3 h-3" />
                     Переход
                   </label>
                   <select 
                     value={step.nextStepId || ''} 
                     onChange={e => updateStep(step.id, { nextStepId: e.target.value || undefined })} 
-                    className="w-full p-4 bg-white/5 rounded-xl outline-none text-white appearance-none"
+                    className="w-full p-4 bg-gray-50 rounded-xl outline-none text-[#2C3E50] appearance-none"
                   >
-                    <option value="" className="bg-[#1A1A1A]">По порядку</option>
-                    {steps.filter(s => s.id !== step.id).map(s => <option key={s.id} value={s.id} className="bg-[#1A1A1A]">{s.title}</option>)}
-                    <option value="finish" className="bg-[#1A1A1A]">🏆 Финиш</option>
+                    <option value="" className="bg-white">По порядку</option>
+                    {steps.filter(s => s.id !== step.id).map(s => <option key={s.id} value={s.id} className="bg-white">{s.title}</option>)}
+                    <option value="finish" className="bg-white">🏆 Финиш</option>
                   </select>
                 </div>
                 <div className="md:col-span-2 flex items-end gap-6 pb-4">
-                  <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold uppercase text-gray-500 hover:text-white transition-colors">
+                  <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold uppercase text-gray-400 hover:text-[#2C3E50] transition-colors">
                     <input 
                       type="checkbox" 
                       checked={step.isMulti} 
                       onChange={e => updateStep(step.id, { isMulti: e.target.checked })} 
-                      className="w-4 h-4 rounded border-white/10 bg-white/5 text-orange-500 focus:ring-orange-500"
+                      className="w-4 h-4 rounded border-gray-200 bg-white text-orange-500 focus:ring-orange-500"
                     /> 
                     <Layers className="w-3 h-3" />
                     Мультивыбор
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold uppercase text-gray-500 hover:text-white transition-colors">
+                  <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold uppercase text-gray-400 hover:text-[#2C3E50] transition-colors">
                     <input 
                       type="checkbox" 
                       checked={step.isText} 
                       onChange={e => updateStep(step.id, { isText: e.target.checked })} 
-                      className="w-4 h-4 rounded border-white/10 bg-white/5 text-orange-500 focus:ring-orange-500"
+                      className="w-4 h-4 rounded border-gray-200 bg-white text-orange-500 focus:ring-orange-500"
                     /> 
                     <Type className="w-3 h-3" />
                     Текстовый ввод
                   </label>
                 </div>
                 <div className="md:col-span-4">
-                  <label className="text-[9px] font-black uppercase text-gray-500 mb-2 block">Вопрос для пользователя</label>
+                  <label className="text-[9px] font-black uppercase text-gray-400 mb-2 block">Вопрос для пользователя</label>
                   <input 
                     value={step.question} 
                     onChange={e => updateStep(step.id, { question: e.target.value })} 
-                    className="w-full p-6 bg-white/5 border border-white/10 rounded-2xl text-2xl font-bold serif outline-none focus:border-orange-500 text-white transition-all" 
+                    className="w-full p-6 bg-gray-50 border border-gray-100 rounded-2xl text-2xl font-bold serif outline-none focus:border-orange-500 text-[#2C3E50] transition-all" 
                   />
                 </div>
               </div>
@@ -267,10 +267,10 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                      <motion.div 
                         layout
                         key={opt.id} 
-                        className="flex flex-wrap items-center gap-4 p-5 bg-white/5 rounded-3xl border border-white/10 group/opt hover:border-white/20 transition-all"
+                        className="flex flex-wrap items-center gap-4 p-5 bg-gray-50 rounded-3xl border border-gray-100 group/opt hover:border-[#E8E2D9] transition-all"
                       >
-                        <div className="w-16 h-16 bg-black/20 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden shadow-sm flex-shrink-0 group-hover:border-orange-500/50 transition-colors">
-                          {opt.image ? <img src={opt.image} className="w-full h-full object-cover" /> : <ImageIcon className="w-6 h-6 text-gray-600" />}
+                        <div className="w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden shadow-sm flex-shrink-0 group-hover:border-orange-500/50 transition-colors">
+                          {opt.image ? <img src={opt.image} className="w-full h-full object-cover" /> : <ImageIcon className="w-6 h-6 text-gray-300" />}
                           <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -288,18 +288,18 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                             value={opt.label} 
                             placeholder="Текст варианта" 
                             onChange={e => updateOption(step.id, opt.id, { label: e.target.value })} 
-                            className="w-full bg-transparent font-bold outline-none border-b border-transparent focus:border-orange-500 text-white transition-all" 
+                            className="w-full bg-transparent font-bold outline-none border-b border-transparent focus:border-orange-500 text-[#2C3E50] transition-all" 
                           />
                           <input 
                             value={opt.description || ''} 
                             placeholder="Описание или цена (необяз.)" 
                             onChange={e => updateOption(step.id, opt.id, { description: e.target.value })} 
-                            className="w-full bg-transparent text-[10px] text-gray-500 font-medium outline-none" 
+                            className="w-full bg-transparent text-[10px] text-gray-400 font-medium outline-none" 
                           />
                         </div>
                         <button 
                           onClick={() => updateStep(step.id, { options: step.options.filter(o => o.id !== opt.id) })} 
-                          className="text-gray-600 hover:text-red-500 transition-all p-2 opacity-0 group-hover/opt:opacity-100"
+                          className="text-gray-300 hover:text-red-500 transition-all p-2 opacity-0 group-hover/opt:opacity-100"
                         >
                           <X className="w-5 h-5" />
                         </button>
@@ -318,7 +318,7 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
           ))}
           <button 
             onClick={addStep} 
-            className="w-full py-20 rounded-[4rem] border-4 border-dashed border-white/5 text-gray-600 font-bold hover:border-orange-500 hover:text-orange-500 transition-all uppercase tracking-[0.3em] text-[11px] bg-white/5 group"
+            className="w-full py-20 rounded-[4rem] border-4 border-dashed border-gray-100 text-gray-300 font-bold hover:border-orange-500 hover:text-orange-500 transition-all uppercase tracking-[0.3em] text-[11px] bg-white group"
           >
             <div className="flex flex-col items-center gap-4 group-hover:scale-110 transition-transform">
               <Plus className="w-10 h-10" />
