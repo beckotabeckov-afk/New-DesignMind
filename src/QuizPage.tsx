@@ -54,6 +54,7 @@ const QuizPage: React.FC = () => {
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -109,7 +110,8 @@ const QuizPage: React.FC = () => {
   };
 
   const createNewQuiz = async () => {
-    if (!user) return;
+    if (!user || isProcessing) return;
+    setIsProcessing(true);
     const newId = `proj_${Date.now()}`;
     const newProj: Omit<QuizProject, 'id'> = {
       name: 'Новый дизайн-квиз',
@@ -126,15 +128,20 @@ const QuizPage: React.FC = () => {
       showToast('Проект создан');
     } catch (e) {
       showToast('Ошибка создания', 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const duplicateProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) return;
+    e.preventDefault();
+    if (!user || isProcessing) return;
+    
     const source = projects.find(p => p.id === id);
     if (!source) return;
     
+    setIsProcessing(true);
     const newId = `proj_copy_${Date.now()}`;
     const clone: Omit<QuizProject, 'id'> = {
       ...JSON.parse(JSON.stringify(source)),
@@ -147,6 +154,8 @@ const QuizPage: React.FC = () => {
       showToast('Квиз продублирован');
     } catch (e) {
       showToast('Ошибка дублирования', 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -158,10 +167,11 @@ const QuizPage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!user || !deleteConfirmId) return;
+    const idToDelete = deleteConfirmId;
+    setDeleteConfirmId(null); // Закрываем окно сразу для мгновенного отклика
     try {
-      await deleteDoc(doc(db, 'users', user.uid, 'projects', deleteConfirmId));
+      await deleteDoc(doc(db, 'users', user.uid, 'projects', idToDelete));
       showToast('Проект удален');
-      setDeleteConfirmId(null);
     } catch (e) {
       showToast('Ошибка удаления', 'error');
     }
@@ -420,7 +430,15 @@ const QuizPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                onClick={() => { setCurrentProjectId(proj.id); setCurrentStepId(proj.steps[0].id); setSelections({}); setResult(null); setIsEditMode(false); }} 
+                onClick={(e) => { 
+                  if (isProcessing) return;
+                  e.preventDefault();
+                  setCurrentProjectId(proj.id); 
+                  setCurrentStepId(proj.steps[0].id); 
+                  setSelections({}); 
+                  setResult(null); 
+                  setIsEditMode(false); 
+                }} 
                 className="group bg-white p-12 rounded-[4rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_40px_80px_-20px_rgba(44,62,80,0.15)] relative overflow-hidden flex flex-col min-h-[380px]"
               >
                 <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-20">
