@@ -34,10 +34,14 @@
   overflow-anchor: none;
 }
 
+@theme {
+  --font-serif: "Playfair Display", serif;
+}
+
 .serif {
-  font-family: 'Playfair Display', serif;
+  @apply font-serif;
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-  @apply serif;
+  @apply font-serif;
 }
