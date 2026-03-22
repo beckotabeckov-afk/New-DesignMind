@@ -27,7 +27,6 @@ interface Props {
   onSave: (newSteps: QuizStep[]) => void;
   onExit: () => void;
   onExport: () => void;
-  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const resizeImage = (base64Str: string, maxWidth = 1024): Promise<string> => {
@@ -51,7 +50,7 @@ const resizeImage = (base64Str: string, maxWidth = 1024): Promise<string> => {
   });
 };
 
-const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit, onExport, onImport }) => {
+const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit, onExport }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [stepToDelete, setStepToDelete] = useState<string | null>(null);
@@ -118,14 +117,26 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
 
     try {
       const zip = await JSZip.loadAsync(file);
-      const newSteps = JSON.parse(JSON.stringify(steps)) as QuizStep[];
-      let updatedCount = 0;
+      let newSteps: QuizStep[] = JSON.parse(JSON.stringify(steps));
+      let newName = quizName;
 
+      // 1. Поиск quiz.json для структуры
+      const jsonFile = zip.file('quiz.json');
+      if (jsonFile) {
+        const jsonContent = await jsonFile.async('string');
+        const projectData = JSON.parse(jsonContent);
+        if (projectData.steps) newSteps = projectData.steps;
+        if (projectData.name) {
+          newName = projectData.name;
+          onRename(newName);
+        }
+      }
+
+      // 2. Загрузка изображений
+      let updatedCount = 0;
       for (const [filename, zipEntry] of Object.entries(zip.files)) {
         if (zipEntry.dir) continue;
         
-        // Match filename to option ID (e.g., opt_123.jpg or opt_123.png)
-        // Also handle cases where images are in a subfolder like "images/opt_123.jpg"
         const baseName = filename.split('/').pop() || '';
         const idMatch = baseName.match(/(opt_[^.]+)\.(jpg|jpeg|png|webp)/i);
         
@@ -147,17 +158,12 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
         }
       }
 
-      if (updatedCount > 0) {
-        onSave(newSteps);
-        alert(`Успешно импортировано ${updatedCount} изображений`);
-      } else {
-        alert('В архиве не найдено изображений с именами, соответствующими ID вариантов (например, opt_123.jpg)');
-      }
+      onSave(newSteps);
+      alert(`Импорт завершен! Загружено шагов: ${newSteps.length}, изображений: ${updatedCount}`);
     } catch (err) {
       console.error('ZIP import error:', err);
-      alert('Ошибка при чтении ZIP-архива');
+      alert('Ошибка при чтении ZIP-архива. Убедитесь, что это корректный экспорт квиза.');
     }
-    // Reset input
     e.target.value = '';
   };
 
@@ -265,18 +271,15 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
             />
           </div>
           <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2 bg-orange-50 text-orange-600 px-6 py-3 rounded-full font-bold text-[10px] uppercase cursor-pointer hover:bg-orange-100 transition-all border border-orange-100 shadow-sm">
+              <Upload className="w-3 h-3" />
+              Импорт (ZIP)
+              <input type="file" accept=".zip" className="hidden" onChange={handleZipImport} />
+            </label>
             <button onClick={onExport} className="flex items-center gap-2 bg-gray-50 text-gray-400 px-6 py-3 rounded-full font-bold text-[10px] uppercase border border-gray-100 hover:bg-gray-100 transition-all">
               <Download className="w-3 h-3" />
-              Экспорт
+              Экспорт (ZIP)
             </button>
-            <label className="flex items-center gap-2 bg-purple-50 text-purple-500 px-6 py-3 rounded-full font-bold text-[10px] uppercase cursor-pointer hover:bg-purple-100 transition-all">
-              <FileArchive className="w-3 h-3" />
-              Картинки (ZIP) <input type="file" accept=".zip" className="hidden" onChange={handleZipImport} />
-            </label>
-            <label className="flex items-center gap-2 bg-blue-50 text-blue-500 px-6 py-3 rounded-full font-bold text-[10px] uppercase cursor-pointer hover:bg-blue-100 transition-all">
-              <Upload className="w-3 h-3" />
-              Структура (JSON) <input type="file" accept=".json" className="hidden" onChange={onImport} />
-            </label>
             <button onClick={onExit} className="flex items-center gap-2 bg-[#2C3E50] text-white px-8 py-3 rounded-full font-bold text-[10px] uppercase shadow-xl hover:bg-black transition-all">
               <Check className="w-3 h-3" />
               Готово

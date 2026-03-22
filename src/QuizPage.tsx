@@ -20,6 +20,7 @@ import {
   ChevronRight, 
   Layout, 
   Download, 
+  Upload,
   Share2, 
   LogOut, 
   Sparkles, 
@@ -96,6 +97,106 @@ const QuizPage: React.FC = () => {
     };
     checkApiKey();
   }, []);
+
+  const handleExport = async (proj: QuizProject, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const zip = new JSZip();
+    zip.file('quiz.json', JSON.stringify(proj));
+    
+    proj.steps.forEach(step => {
+      step.options.forEach(opt => {
+        if (opt.image) {
+          const base64Data = opt.image.split(',')[1];
+          zip.file(`images/${opt.id}.jpg`, base64Data, { base64: true });
+        }
+      });
+    });
+    
+    const content = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(content);
+    link.download = `${proj.name}.zip`;
+    link.click();
+  };
+
+  const handleZipImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setLoading(true);
+    setLoadingStage('Импорт проекта из ZIP...');
+
+    try {
+      const zip = await JSZip.loadAsync(file);
+      
+      // 1. Поиск quiz.json
+      const jsonFile = zip.file('quiz.json');
+      if (!jsonFile) {
+        throw new Error('Файл quiz.json не найден в архиве');
+      }
+
+      const jsonContent = await jsonFile.async('string');
+      const projectData = JSON.parse(jsonContent);
+      
+      if (!projectData.steps) {
+        throw new Error('Некорректная структура проекта в quiz.json');
+      }
+
+      // 2. Загрузка изображений
+      const steps = JSON.parse(JSON.stringify(projectData.steps)) as QuizStepType[];
+      let updatedCount = 0;
+
+      for (const [filename, zipEntry] of Object.entries(zip.files)) {
+        if (zipEntry.dir) continue;
+        const baseName = filename.split('/').pop() || '';
+        const idMatch = baseName.match(/(opt_[^.]+)\.(jpg|jpeg|png|webp)/i);
+        
+        if (idMatch) {
+          const optId = idMatch[1];
+          const base64 = await zipEntry.async('base64');
+          const ext = idMatch[2].toLowerCase();
+          const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+          const dataUrl = `data:${mimeType};base64,${base64}`;
+
+          steps.forEach(step => {
+            step.options.forEach(opt => {
+              if (opt.id === optId) {
+                opt.image = dataUrl;
+                updatedCount++;
+              }
+            });
+          });
+        }
+      }
+
+      // 3. Сохранение в Firebase
+      const newId = `import_${Date.now()}`;
+      const newProj: Omit<QuizProject, 'id'> = {
+        name: projectData.name || 'Импортированный квиз',
+        createdAt: Date.now(),
+        steps: steps
+      };
+
+      await setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
+      showToast(`Проект импортирован! Загружено ${updatedCount} изображений.`, 'success');
+      
+      // Сразу открываем его
+      setCurrentProjectId(newId);
+      setCurrentStepId(steps[0].id);
+      setSelections({});
+      setResult(null);
+      setIsEditMode(false);
+
+    } catch (err: any) {
+      console.error('ZIP import error:', err);
+      showToast(err.message || 'Ошибка импорта ZIP', 'error');
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
+  };
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -409,10 +510,11 @@ const QuizPage: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => navigate('/')} className="bg-white text-[#2C3E50] border border-[#E8E2D9] px-10 py-6 rounded-full font-bold hover:bg-gray-50 transition-all flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Главная
-              </button>
+              <label className="bg-white text-[#2C3E50] border border-[#E8E2D9] px-10 py-6 rounded-full font-bold hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer shadow-sm">
+                <Upload className="w-5 h-5" />
+                <span>Импорт (ZIP)</span>
+                <input type="file" accept=".zip" className="hidden" onChange={handleZipImport} />
+              </label>
               <button onClick={createNewQuiz} className="bg-[#2C3E50] text-white px-14 py-6 rounded-full font-bold shadow-2xl hover:bg-black transition-all flex items-center gap-4 active:scale-95">
                 <Plus className="w-5 h-5" />
                 <span>Новый проект</span>
@@ -442,6 +544,13 @@ const QuizPage: React.FC = () => {
                 className="group bg-white p-12 rounded-[4rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_40px_80px_-20px_rgba(44,62,80,0.15)] relative overflow-hidden flex flex-col min-h-[380px]"
               >
                 <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <button 
+                    onClick={(e) => handleExport(proj, e)} 
+                    className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-orange-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                    title="Экспорт (ZIP)"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                   <button 
                     onClick={(e) => duplicateProject(proj.id, e)} 
                     className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
@@ -555,40 +664,7 @@ const QuizPage: React.FC = () => {
                 onRename={(name) => updateProjectData({ name })}
                 onSave={(newSteps) => updateProjectData({ steps: newSteps })} 
                 onExit={() => setIsEditMode(false)}
-                onExport={async () => {
-                  const zip = new JSZip();
-                  zip.file('quiz.json', JSON.stringify(activeProject));
-                  activeProject?.steps.forEach(step => {
-                    step.options.forEach(opt => {
-                      if (opt.image) {
-                        const base64Data = opt.image.split(',')[1];
-                        zip.file(`images/${opt.id}.jpg`, base64Data, { base64: true });
-                      }
-                    });
-                  });
-                  const content = await zip.generateAsync({ type: 'blob' });
-                  const link = document.createElement('a');
-                  link.href = URL.createObjectURL(content);
-                  link.download = `${activeProject?.name}.zip`;
-                  link.click();
-                }} 
-                onImport={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file && user) {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                      try {
-                        const content = JSON.parse(event.target?.result as string);
-                        const newId = `import_${Date.now()}`;
-                        const newProj: Omit<QuizProject, 'id'> = { ...content, createdAt: Date.now() };
-                        await setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
-                        setCurrentProjectId(newId);
-                        setCurrentStepId(newProj.steps[0].id);
-                      } catch (err) { showToast('Ошибка импорта', 'error'); }
-                    };
-                    reader.readAsText(file);
-                  }
-                }} 
+                onExport={() => activeProject && handleExport(activeProject, { preventDefault: () => {}, stopPropagation: () => {} } as any)}
               />
             </motion.div>
           ) : (

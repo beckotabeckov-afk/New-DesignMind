@@ -12,6 +12,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const navigate = useNavigate();
 
   const handleGoogleAuth = async () => {
+    setError('');
     try {
       await loginWithGoogle();
       onClose();
@@ -19,11 +20,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     } catch (error: any) {
       console.error("Google Auth error:", error);
       if (error.code === 'auth/popup-closed-by-user') {
-        setError('Окно авторизации было закрыто. Пожалуйста, попробуйте снова.');
+        setError('Окно авторизации было закрыто. Если вы не закрывали его сами, попробуйте открыть приложение в новой вкладке (кнопка в правом верхнем углу AI Studio).');
       } else if (error.code === 'auth/popup-blocked') {
-        setError('Всплывающее окно заблокировано. Пожалуйста, разрешите всплывающие окна в настройках.');
+        setError('Всплывающее окно заблокировано. Пожалуйста, разрешите всплывающие окна в настройках браузера или откройте приложение в новой вкладке.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        setError('Этот домен не разрешен для авторизации. Пожалуйста, добавьте текущий URL в список разрешенных доменов в консоли Firebase.');
       } else {
-        setError(error.message);
+        setError('Произошла ошибка при входе: ' + (error.message || 'Неизвестная ошибка'));
       }
     }
   };
