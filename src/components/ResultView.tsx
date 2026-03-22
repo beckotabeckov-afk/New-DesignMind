@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { DesignResult } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import Markdown from 'react-markdown';
 import { 
   Printer, 
   Copy, 
@@ -29,6 +30,10 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
   const [feedbackText, setFeedbackText] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
   const handlePrint = () => {
     window.print();
   };
@@ -48,12 +53,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
   };
 
   const VisualCard = ({ url, title, type }: { url?: string, title: string, type: string }) => (
-    <motion.div 
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="bg-white rounded-[4rem] p-10 md:p-16 text-[#2C3E50] overflow-hidden shadow-xl relative mb-12 avoid-break border border-[#E8E2D9]"
-    >
+    <div className="bg-white rounded-[4rem] p-10 md:p-16 text-[#2C3E50] overflow-hidden shadow-lg relative mb-12 avoid-break border border-[#E8E2D9]">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         <div className="space-y-8 order-2 lg:order-1">
           <div className="space-y-4">
@@ -72,11 +72,11 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
         
         <div className="order-1 lg:order-2 relative">
           {url ? (
-            <div className="rounded-[3rem] overflow-hidden shadow-2xl border border-gray-100 group aspect-video">
+            <div className="rounded-[3rem] overflow-hidden shadow-xl border border-gray-100 group aspect-video">
               <img 
                 src={url} 
                 alt={title} 
-                className="w-full h-full object-cover transform transition-transform duration-[3s] group-hover:scale-105" 
+                className="w-full h-full object-cover" 
                 referrerPolicy="no-referrer"
               />
             </div>
@@ -88,7 +88,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 
   return (
@@ -177,15 +177,11 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
         
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
           {result.choices.map((choice, idx) => (
-            <motion.div 
+            <div 
               key={idx} 
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.05 }}
               className="group avoid-break"
             >
-              <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 bg-white border border-gray-100 shadow-sm transition-all group-hover:shadow-lg group-hover:border-orange-500/30">
+              <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 bg-white border border-gray-100 shadow-sm transition-all group-hover:shadow-md group-hover:border-orange-500/30">
                 {choice.image ? (
                   <img src={choice.image} alt={choice.label} className="w-full h-full object-cover" />
                 ) : (
@@ -194,7 +190,7 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
               </div>
               <p className="text-[8px] font-black uppercase tracking-widest text-orange-500 mb-1">{choice.stepTitle}</p>
               <p className="text-sm font-bold text-[#2C3E50] serif">{choice.label}</p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </section>
@@ -215,36 +211,25 @@ const ResultView: React.FC<Props> = ({ result, onRestart, onRegenerate }) => {
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.4em]">Expert Project Documentation</p>
           </header>
 
-          <div className="prose prose-xl max-w-none text-gray-600">
-            {result.technicalAssignment.split('\n\n').map((paragraph, idx) => {
-              const lines = paragraph.split('\n');
-              return (
-                <div key={idx} className="mb-10 avoid-break">
-                  {lines.map((line, lineIdx) => {
-                    const trimmed = line.trim();
-                    if (trimmed.startsWith('# ')) {
-                      return <h1 key={lineIdx} className="text-4xl md:text-6xl font-bold text-[#2C3E50] mt-16 mb-10 serif leading-tight">{trimmed.replace('# ', '')}</h1>;
-                    }
-                    if (trimmed.startsWith('## ')) {
-                      return <h2 key={lineIdx} className="text-2xl md:text-4xl font-bold text-[#2C3E50] mt-14 mb-8 border-b border-gray-100 pb-4 serif italic">{trimmed.replace('## ', '')}</h2>;
-                    }
-                    if (trimmed.startsWith('### ')) {
-                      return <h3 key={lineIdx} className="text-base md:text-lg font-black text-orange-500 mt-10 mb-6 uppercase tracking-[0.2em]">{trimmed.replace('### ', '')}</h3>;
-                    }
-                    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                      return (
-                        <div key={lineIdx} className="flex items-start gap-6 mb-4 pl-2">
-                          <span className="mt-2.5 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
-                          <span className="text-lg md:text-xl leading-relaxed font-light">{trimmed.replace(/^[-*]\s/, '')}</span>
-                        </div>
-                      );
-                    }
-                    if (trimmed === '') return null;
-                    return <p key={lineIdx} className="mb-4 text-lg md:text-xl leading-relaxed text-gray-500 font-light">{line}</p>;
-                  })}
-                </div>
-              );
-            })}
+          <div className="markdown-body">
+            <Markdown
+              components={{
+                h1: ({ children }) => <h1 className="text-4xl md:text-6xl font-bold text-[#2C3E50] mt-16 mb-10 serif leading-tight">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-2xl md:text-4xl font-bold text-[#2C3E50] mt-14 mb-8 border-b border-gray-100 pb-4 serif italic">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-base md:text-lg font-black text-orange-500 mt-10 mb-6 uppercase tracking-[0.2em]">{children}</h3>,
+                p: ({ children }) => <p className="mb-6 text-lg md:text-xl leading-relaxed text-gray-500 font-light">{children}</p>,
+                ul: ({ children }) => <ul className="mb-10 space-y-4">{children}</ul>,
+                li: ({ children }) => (
+                  <li className="flex items-start gap-6 pl-2">
+                    <span className="mt-2.5 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
+                    <span className="text-lg md:text-xl leading-relaxed font-light text-gray-600">{children}</span>
+                  </li>
+                ),
+                strong: ({ children }) => <strong className="font-bold text-[#2C3E50]">{children}</strong>,
+              }}
+            >
+              {result.technicalAssignment}
+            </Markdown>
           </div>
         </div>
       </section>

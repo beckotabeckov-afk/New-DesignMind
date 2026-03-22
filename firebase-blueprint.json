@@ -26,6 +26,16 @@
         "steps": { "type": "array" }
       },
       "required": ["id", "userId", "name", "createdAt", "steps"]
+    },
+    "ProjectImage": {
+      "title": "ProjectImage",
+      "description": "An image associated with a quiz project option",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "data": { "type": "string" }
+      },
+      "required": ["id", "data"]
     }
   },
   "firestore": {
@@ -33,9 +43,13 @@
       "schema": "User",
       "description": "User profile documents"
     },
-    "/projects/{projectId}": {
+    "/users/{userId}/projects/{projectId}": {
       "schema": "QuizProject",
       "description": "Quiz projects created by users"
+    },
+    "/users/{userId}/projects/{projectId}/images/{imageId}": {
+      "schema": "ProjectImage",
+      "description": "Images for project options"
     }
   }
 }

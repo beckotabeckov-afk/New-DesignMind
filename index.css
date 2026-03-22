@@ -1,1 +1,43 @@
 @import "tailwindcss";
+
+@layer base {
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-top: 100px;
+  }
+
+  body {
+    @apply antialiased text-[#2C3E50] bg-[#fafafa];
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 5px;
+    border: 2px solid #f1f1f1;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #999;
+  }
+}
+
+.technical-brief-content {
+  overflow-anchor: none;
+}
+
+.serif {
+  font-family: 'Playfair Display', serif;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  @apply serif;
+}

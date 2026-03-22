@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { collection, doc, getDocs, setDoc, deleteDoc, query, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -83,6 +83,28 @@ const QuizPage: React.FC = () => {
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [projectImages, setProjectImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!user || !currentProjectId) {
+      setProjectImages({});
+      return;
+    }
+
+    const imagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
+    const unsubscribe = onSnapshot(imagesRef, (snapshot) => {
+      const images: Record<string, string> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        images[doc.id] = data.data;
+      });
+      setProjectImages(images);
+    }, (error) => {
+      console.error("Error loading images:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user, currentProjectId]);
 
   useEffect(() => {
     if (!user) return;
@@ -90,20 +112,47 @@ const QuizPage: React.FC = () => {
     const projectsRef = collection(db, 'users', user.uid, 'projects');
     const q = query(projectsRef, orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const loadedProjects = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
       })) as QuizProject[];
       
       if (loadedProjects.length === 0) {
-        // Create default project if none exist
-        const defaultProj: Omit<QuizProject, 'id'> = {
-          name: 'Новый дизайн-квиз',
-          createdAt: Date.now(),
-          steps: DEFAULT_STEPS
-        };
-        setDoc(doc(projectsRef, 'default'), defaultProj);
+        // Проверяем наличие пользовательского шаблона
+        const templateRef = doc(db, 'users', user.uid, 'templates', 'default');
+        const templateSnap = await getDocs(collection(db, 'users', user.uid, 'templates'));
+        const hasTemplate = templateSnap.docs.some(d => d.id === 'default');
+
+        if (hasTemplate) {
+          const templateDoc = templateSnap.docs.find(d => d.id === 'default');
+          const templateData = templateDoc?.data();
+          
+          const newProjId = `proj_${Date.now()}`;
+          const newProj: Omit<QuizProject, 'id'> = {
+            name: templateData?.name || 'Новый дизайн-квиз',
+            createdAt: Date.now(),
+            steps: templateData?.steps || DEFAULT_STEPS
+          };
+          
+          await setDoc(doc(projectsRef, newProjId), newProj);
+
+          // Копируем изображения из шаблона
+          const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
+          const newImagesRef = collection(db, 'users', user.uid, 'projects', newProjId, 'images');
+          const imagesSnap = await getDocs(templateImagesRef);
+          await Promise.all(imagesSnap.docs.map(d => 
+            setDoc(doc(newImagesRef, d.id), d.data())
+          ));
+        } else {
+          // Create default project if none exist
+          const defaultProj: Omit<QuizProject, 'id'> = {
+            name: 'Новый дизайн-квиз',
+            createdAt: Date.now(),
+            steps: DEFAULT_STEPS
+          };
+          setDoc(doc(projectsRef, 'default'), defaultProj);
+        }
       } else {
         setProjects(loadedProjects);
         setIsInitialLoading(false);
@@ -223,7 +272,7 @@ const QuizPage: React.FC = () => {
             
             // Сжимаем изображение перед сохранением в проект
             setLoadingStage(`Сжатие изображения ${processedFiles}/${totalFiles}...`);
-            const resized = await resizeImage(fullBase64, 800); // Уменьшаем до 800px для экономии места
+            const resized = await resizeImage(fullBase64, 1024); // Увеличиваем до 1024px
             optionMap[optId].image = resized;
             updatedCount++;
           }
@@ -233,26 +282,42 @@ const QuizPage: React.FC = () => {
       // 3. Сохранение в Firebase
       setLoadingStage('Сохранение проекта в облако...');
       const newId = `import_${Date.now()}`;
+      
+      // Извлекаем изображения для отдельного сохранения
+      const imagesToSave: {id: string, data: string}[] = [];
+      const stepsToSave = JSON.parse(JSON.stringify(steps)) as QuizStepType[];
+      
+      stepsToSave.forEach(step => {
+        step.options.forEach(opt => {
+          if (opt.image) {
+            imagesToSave.push({ id: opt.id, data: opt.image });
+            opt.image = ""; // Очищаем в основном документе
+          }
+        });
+      });
+
       const newProj: Omit<QuizProject, 'id'> = {
         name: projectData.name || 'Импортированный квиз',
         createdAt: Date.now(),
-        steps: steps
+        steps: stepsToSave
       };
 
-      // Проверка размера (лимит Firestore 1MB)
-      const estimatedSize = JSON.stringify(newProj).length;
-      if (estimatedSize > 1000000) {
-        throw new Error(`Проект слишком велик (${(estimatedSize / 1024 / 1024).toFixed(2)}MB). Лимит Firestore — 1MB. Уменьшите количество или размер изображений.`);
-      }
-
       // Сохранение с таймаутом
-      const savePromise = setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
+      const projectRef = doc(db, 'users', user.uid, 'projects', newId);
+      const savePromise = setDoc(projectRef, newProj);
+      
+      // Сохраняем изображения в подколлекцию
+      const imagesRef = collection(db, 'users', user.uid, 'projects', newId, 'images');
+      const saveImagesPromise = Promise.all(imagesToSave.map(img => 
+        setDoc(doc(imagesRef, img.id), { id: img.id, data: img.data })
+      ));
+
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Превышено время ожидания сохранения в облако. Проверьте интернет-соединение.')), 30000)
       );
 
       try {
-        await Promise.race([savePromise, timeoutPromise]);
+        await Promise.race([Promise.all([savePromise, saveImagesPromise]), timeoutPromise]);
       } catch (saveErr) {
         handleFirestoreError(saveErr, 'write', `users/${user.uid}/projects/${newId}`);
       }
@@ -290,16 +355,33 @@ const QuizPage: React.FC = () => {
   const createNewQuiz = async () => {
     if (!user || isProcessing) return;
     setIsProcessing(true);
-    const newId = `proj_${Date.now()}`;
-    const newProj: Omit<QuizProject, 'id'> = {
-      name: 'Новый дизайн-квиз',
-      createdAt: Date.now(),
-      steps: DEFAULT_STEPS
-    };
     try {
-      await setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
+      const projectsRef = collection(db, 'users', user.uid, 'projects');
+      const templateSnap = await getDocs(collection(db, 'users', user.uid, 'templates'));
+      const templateDoc = templateSnap.docs.find(d => d.id === 'default');
+      const templateData = templateDoc?.data();
+
+      const newId = `proj_${Date.now()}`;
+      const newProj: Omit<QuizProject, 'id'> = {
+        name: templateData?.name || 'Новый дизайн-квиз',
+        createdAt: Date.now(),
+        steps: templateData?.steps || DEFAULT_STEPS
+      };
+
+      await setDoc(doc(projectsRef, newId), newProj);
+
+      if (templateData) {
+        // Копируем изображения из шаблона
+        const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
+        const newImagesRef = collection(db, 'users', user.uid, 'projects', newId, 'images');
+        const imagesSnap = await getDocs(templateImagesRef);
+        await Promise.all(imagesSnap.docs.map(d => 
+          setDoc(doc(newImagesRef, d.id), d.data())
+        ));
+      }
+
       setCurrentProjectId(newId);
-      setCurrentStepId(DEFAULT_STEPS[0].id);
+      setCurrentStepId((templateData?.steps || DEFAULT_STEPS)[0].id);
       setSelections({});
       setResult(null);
       setIsEditMode(true);
@@ -328,7 +410,20 @@ const QuizPage: React.FC = () => {
     };
     
     try {
+      // 1. Копируем сам проект
       await setDoc(doc(db, 'users', user.uid, 'projects', newId), clone);
+      
+      // 2. Копируем изображения из подколлекции
+      const sourceImagesRef = collection(db, 'users', user.uid, 'projects', id, 'images');
+      const targetImagesRef = collection(db, 'users', user.uid, 'projects', newId, 'images');
+      const imagesSnapshot = await getDocs(sourceImagesRef);
+      
+      if (!imagesSnapshot.empty) {
+        await Promise.all(imagesSnapshot.docs.map(d => 
+          setDoc(doc(targetImagesRef, d.id), d.data())
+        ));
+      }
+
       showToast('Квиз продублирован');
     } catch (e) {
       showToast('Ошибка дублирования', 'error');
@@ -348,6 +443,12 @@ const QuizPage: React.FC = () => {
     const idToDelete = deleteConfirmId;
     setDeleteConfirmId(null); // Закрываем окно сразу для мгновенного отклика
     try {
+      // 1. Удаляем изображения
+      const imagesRef = collection(db, 'users', user.uid, 'projects', idToDelete, 'images');
+      const imagesSnapshot = await getDocs(imagesRef);
+      await Promise.all(imagesSnapshot.docs.map(d => deleteDoc(d.ref)));
+      
+      // 2. Удаляем сам проект
       await deleteDoc(doc(db, 'users', user.uid, 'projects', idToDelete));
       showToast('Проект удален');
     } catch (e) {
@@ -355,19 +456,82 @@ const QuizPage: React.FC = () => {
     }
   };
 
-  const updateProjectData = async (updates: Partial<QuizProject>) => {
+  const updateProjectData = async (updates: Partial<QuizProject>, isTemplate?: boolean) => {
     if (!user || !currentProjectId || !activeProject) return;
     try {
-      // Проверка размера перед обновлением (Firestore limit 1MB)
-      const fullProject = { ...activeProject, ...updates };
-      const estimatedSize = JSON.stringify(fullProject).length;
-      if (estimatedSize > 1000000) {
-        showToast(`Проект слишком велик (${(estimatedSize / 1024 / 1024).toFixed(2)}MB). Уменьшите размер или количество изображений.`, 'error');
-        return;
-      }
-
       const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId);
+      
+      if (updates.steps) {
+        const imagesToSave: {id: string, data: string}[] = [];
+        const stepsToSave = JSON.parse(JSON.stringify(updates.steps)) as QuizStepType[];
+        
+        // Собираем ID всех опций, у которых есть изображение в текущем состоянии редактора
+        // Важно: "" означает, что изображение уже в подколлекции, его нельзя удалять
+        const optionIdsWithImages = new Set<string>();
+        
+        stepsToSave.forEach(step => {
+          step.options.forEach(opt => {
+            if (opt.image !== undefined && opt.image !== null && opt.image !== '') {
+              // Если это новая загрузка (data URL)
+              if (opt.image.startsWith('data:')) {
+                imagesToSave.push({ id: opt.id, data: opt.image });
+              }
+              optionIdsWithImages.add(opt.id);
+              opt.image = ""; // Очищаем в основном документе
+            } else if (opt.image === "") {
+              // Если это уже сохраненное изображение
+              optionIdsWithImages.add(opt.id);
+            }
+          });
+        });
+
+        // Сохраняем/обновляем изображения в подколлекции
+        const imagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
+        await Promise.all(imagesToSave.map(img => 
+          setDoc(doc(imagesRef, img.id), { id: img.id, data: img.data })
+        ));
+        
+        // Удаляем из Firestore те изображения, которые были удалены в редакторе
+        // (их ID больше нет в списке optionIdsWithImages)
+        const imagesSnapshot = await getDocs(imagesRef);
+        await Promise.all(imagesSnapshot.docs.map(d => {
+          if (!optionIdsWithImages.has(d.id)) {
+            return deleteDoc(d.ref);
+          }
+          return Promise.resolve();
+        }));
+
+        updates.steps = stepsToSave;
+      }
+      
       await updateDoc(projectRef, updates);
+
+      // Если это сохранение как шаблона
+      if (isTemplate) {
+        const templateRef = doc(db, 'users', user.uid, 'templates', 'default');
+        const templateData = {
+          name: updates.name || activeProject.name,
+          steps: updates.steps || activeProject.steps,
+          updatedAt: Date.now()
+        };
+        await setDoc(templateRef, templateData);
+
+        // Копируем изображения в подколлекцию шаблона
+        const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
+        const currentImagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
+        const imagesSnapshot = await getDocs(currentImagesRef);
+        
+        // Очищаем старые изображения шаблона
+        const oldTemplateImages = await getDocs(templateImagesRef);
+        await Promise.all(oldTemplateImages.docs.map(d => deleteDoc(d.ref)));
+
+        // Копируем новые
+        await Promise.all(imagesSnapshot.docs.map(d => 
+          setDoc(doc(templateImagesRef, d.id), d.data())
+        ));
+
+        showToast('Шаблон обновлен');
+      }
     } catch (e) {
       handleFirestoreError(e, 'update', `users/${user.uid}/projects/${currentProjectId}`);
     }
@@ -513,7 +677,20 @@ const QuizPage: React.FC = () => {
     }
   };
 
-  const activeProject = projects.find(p => p.id === currentProjectId);
+  const rawProject = projects.find(p => p.id === currentProjectId);
+  const activeProject = useMemo(() => {
+    if (!rawProject) return null;
+    const cloned = JSON.parse(JSON.stringify(rawProject)) as QuizProject;
+    cloned.steps.forEach(step => {
+      step.options.forEach(opt => {
+        if (projectImages[opt.id]) {
+          opt.image = projectImages[opt.id];
+        }
+      });
+    });
+    return cloned;
+  }, [rawProject, projectImages]);
+
   const currentStepData = activeProject?.steps.find(s => s.id === currentStepId);
   const progress = activeProject && activeProject.steps.length > 0 
     ? ((activeProject.steps.findIndex(s => s.id === currentStepId) + 1) / activeProject.steps.length) * 100 
@@ -521,24 +698,50 @@ const QuizPage: React.FC = () => {
 
   if (!hasApiKey) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6 text-center space-y-8"
-      >
-        <div className="w-24 h-24 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center text-4xl shadow-sm mb-4">
-          <Sparkles className="w-12 h-12" />
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold serif text-white">DesignMind Pro</h1>
-        <p className="max-w-md text-gray-400 font-light leading-relaxed">Для работы с искусственным интеллектом выберите API-ключ из оплаченного Google Cloud проекта.</p>
-        <button onClick={handleSelectApiKey} className="bg-orange-500 text-white px-12 py-6 rounded-full font-bold shadow-2xl hover:bg-orange-600 transition-all">Активировать доступ</button>
-      </motion.div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6 text-center space-y-8">
+        <AnimatePresence>
+          {toast && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: -20, x: '-50%' }}
+              className={`fixed top-8 left-1/2 px-8 py-4 rounded-full font-bold shadow-2xl z-[100] ${toast.type === 'success' ? 'bg-[#2C3E50] text-white' : 'bg-red-500 text-white'}`}
+            >
+              {toast.msg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center space-y-8"
+        >
+          <div className="w-24 h-24 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center text-4xl shadow-sm mb-4">
+            <Sparkles className="w-12 h-12" />
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold serif text-white">DesignMind Pro</h1>
+          <p className="max-w-md text-gray-400 font-light leading-relaxed">Для работы с искусственным интеллектом выберите API-ключ из оплаченного Google Cloud проекта.</p>
+          <button onClick={handleSelectApiKey} className="bg-orange-500 text-white px-12 py-6 rounded-full font-bold shadow-2xl hover:bg-orange-600 transition-all">Активировать доступ</button>
+        </motion.div>
+      </div>
     );
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6">
+        <AnimatePresence>
+          {toast && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: -20, x: '-50%' }}
+              className={`fixed top-8 left-1/2 px-8 py-4 rounded-full font-bold shadow-2xl z-[100] ${toast.type === 'success' ? 'bg-[#2C3E50] text-white' : 'bg-red-500 text-white'}`}
+            >
+              {toast.msg}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <Loader2 className="w-16 h-16 text-orange-400 animate-spin mb-10" />
         <motion.h2 
           initial={{ opacity: 0, y: 10 }}
@@ -551,11 +754,45 @@ const QuizPage: React.FC = () => {
     );
   }
 
-  if (result) return <ResultView result={result} onRestart={() => {setResult(null); setCurrentProjectId(null);}} onRegenerate={handleRegenerate} />;
+  if (result) return (
+    <>
+      <AnimatePresence mode="wait">
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className={`fixed top-8 left-1/2 px-8 py-4 rounded-full font-bold shadow-2xl z-[100] ${toast.type === 'success' ? 'bg-[#2C3E50] text-white' : 'bg-red-500 text-white'}`}
+          >
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <ResultView result={result} onRestart={() => {setResult(null); setCurrentProjectId(null);}} onRegenerate={handleRegenerate} />
+      </motion.div>
+    </>
+  );
 
   if (isEditMode && !activeProject && currentProjectId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0A0A] p-6">
+        <AnimatePresence>
+          {toast && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: -20, x: '-50%' }}
+              className={`fixed top-8 left-1/2 px-8 py-4 rounded-full font-bold shadow-2xl z-[100] ${toast.type === 'success' ? 'bg-[#2C3E50] text-white' : 'bg-red-500 text-white'}`}
+            >
+              {toast.msg}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <Loader2 className="w-16 h-16 text-orange-400 animate-spin mb-10" />
         <h2 className="text-2xl font-bold text-white serif">Загрузка редактора...</h2>
       </div>
@@ -723,6 +960,18 @@ const QuizPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col">
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className={`fixed top-8 left-1/2 px-8 py-4 rounded-full font-bold shadow-2xl z-[100] ${toast.type === 'success' ? 'bg-[#2C3E50] text-white' : 'bg-red-500 text-white'}`}
+          >
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <nav className="p-4 md:p-8 md:px-16 flex justify-between items-center bg-white border-b border-[#E8E2D9] sticky top-0 z-50">
         <button onClick={() => navigate('/')} className="text-[#2C3E50] hover:opacity-70 flex items-center gap-4 font-bold transition-all group">
           <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#2C3E50] group-hover:text-white transition-all">
@@ -761,7 +1010,7 @@ const QuizPage: React.FC = () => {
                 steps={activeProject?.steps || []} 
                 quizName={activeProject?.name || ''}
                 onRename={(name) => updateProjectData({ name })}
-                onSave={(newSteps) => updateProjectData({ steps: newSteps })} 
+                onSave={(newSteps, isTemplate) => updateProjectData({ steps: newSteps }, isTemplate)} 
                 onExit={() => setIsEditMode(false)}
                 onExport={() => activeProject && handleExport(activeProject, { preventDefault: () => {}, stopPropagation: () => {} } as any)}
               />

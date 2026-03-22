@@ -15,12 +15,11 @@ service cloud.firestore {
     //   - createdAt: string (required, ISO 8601)
     //   - role: string (required, 'user' or 'admin')
     //
-    // Collection: users/{userId}/projects
-    // Document ID: {projectId}
+    // Collection: users/{userId}/projects/{projectId}/images
+    // Document ID: {imageId}
     // Fields:
-    //   - name: string (required, max 100 chars)
-    //   - createdAt: number (required)
-    //   - steps: list (required, max 50 steps)
+    //   - id: string (required)
+    //   - data: string (required, base64 image data)
     //
     // ===============================================================
 
@@ -71,6 +70,12 @@ service cloud.firestore {
              data.steps is list && data.steps.size() <= 100;
     }
 
+    function isValidImage(data) {
+      return hasOnlyAllowedFields(['id', 'data']) &&
+             data.id is string &&
+             data.data is string && data.data.size() > 0 && data.data.size() <= 1048576; // 1MB limit for image data
+    }
+
     // ===============================================================
     // Match Rules
     // ===============================================================
@@ -84,6 +89,12 @@ service cloud.firestore {
         allow read: if isOwner(userId) || isAdmin();
         allow create, update: if isOwner(userId) && isValidProject(request.resource.data);
         allow delete: if isOwner(userId) || isAdmin();
+
+        match /images/{imageId} {
+          allow read: if isOwner(userId) || isAdmin();
+          allow create, update: if isOwner(userId) && isValidImage(request.resource.data);
+          allow delete: if isOwner(userId) || isAdmin();
+        }
       }
     }
 

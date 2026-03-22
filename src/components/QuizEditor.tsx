@@ -17,7 +17,8 @@ import {
   Settings2,
   Type,
   Layers,
-  FileArchive
+  FileArchive,
+  Layout
 } from 'lucide-react';
 
 import { resizeImage } from '../utils/image';
@@ -26,7 +27,7 @@ interface Props {
   steps: QuizStep[];
   quizName: string;
   onRename: (name: string) => void;
-  onSave: (newSteps: QuizStep[]) => void;
+  onSave: (newSteps: QuizStep[], isTemplate?: boolean) => void;
   onExit: () => void;
   onExport: () => void;
 }
@@ -261,6 +262,17 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
               <Download className="w-3 h-3" />
               Экспорт (ZIP)
             </button>
+            <button 
+              onClick={() => {
+                if (confirm('Сделать этот проект шаблоном по умолчанию для новых проектов?')) {
+                  onSave(steps, true); // Pass true as a second argument to indicate "set as default"
+                }
+              }} 
+              className="flex items-center gap-2 bg-blue-50 text-blue-600 px-6 py-3 rounded-full font-bold text-[10px] uppercase border border-blue-100 hover:bg-blue-100 transition-all"
+            >
+              <Layout className="w-3 h-3" />
+              Сделать шаблоном
+            </button>
             <button onClick={onExit} className="flex items-center gap-2 bg-[#2C3E50] text-white px-8 py-3 rounded-full font-bold text-[10px] uppercase shadow-xl hover:bg-black transition-all">
               <Check className="w-3 h-3" />
               Готово
@@ -404,11 +416,12 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                               if (file) {
                                 const reader = new FileReader();
                                 reader.onload = async (ev) => {
-                                  const compressed = await resizeImage(ev.target?.result as string);
+                                  const compressed = await resizeImage(ev.target?.result as string, 1024);
                                   updateOption(step.id, opt.id, { image: compressed });
                                 };
                                 reader.readAsDataURL(file);
                               }
+                              e.target.value = '';
                             }} 
                           />
                         </div>
