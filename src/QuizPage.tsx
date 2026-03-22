@@ -112,47 +112,20 @@ const QuizPage: React.FC = () => {
     const projectsRef = collection(db, 'users', user.uid, 'projects');
     const q = query(projectsRef, orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const loadedProjects = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
       })) as QuizProject[];
       
       if (loadedProjects.length === 0) {
-        // Проверяем наличие пользовательского шаблона
-        const templateRef = doc(db, 'users', user.uid, 'templates', 'default');
-        const templateSnap = await getDocs(collection(db, 'users', user.uid, 'templates'));
-        const hasTemplate = templateSnap.docs.some(d => d.id === 'default');
-
-        if (hasTemplate) {
-          const templateDoc = templateSnap.docs.find(d => d.id === 'default');
-          const templateData = templateDoc?.data();
-          
-          const newProjId = `proj_${Date.now()}`;
-          const newProj: Omit<QuizProject, 'id'> = {
-            name: templateData?.name || 'Новый дизайн-квиз',
-            createdAt: Date.now(),
-            steps: templateData?.steps || DEFAULT_STEPS
-          };
-          
-          await setDoc(doc(projectsRef, newProjId), newProj);
-
-          // Копируем изображения из шаблона
-          const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
-          const newImagesRef = collection(db, 'users', user.uid, 'projects', newProjId, 'images');
-          const imagesSnap = await getDocs(templateImagesRef);
-          await Promise.all(imagesSnap.docs.map(d => 
-            setDoc(doc(newImagesRef, d.id), d.data())
-          ));
-        } else {
-          // Create default project if none exist
-          const defaultProj: Omit<QuizProject, 'id'> = {
-            name: 'Новый дизайн-квиз',
-            createdAt: Date.now(),
-            steps: DEFAULT_STEPS
-          };
-          setDoc(doc(projectsRef, 'default'), defaultProj);
-        }
+        // Create default project if none exist
+        const defaultProj: Omit<QuizProject, 'id'> = {
+          name: 'Новый дизайн-квиз',
+          createdAt: Date.now(),
+          steps: DEFAULT_STEPS
+        };
+        setDoc(doc(projectsRef, 'default'), defaultProj);
       } else {
         setProjects(loadedProjects);
         setIsInitialLoading(false);
@@ -355,33 +328,16 @@ const QuizPage: React.FC = () => {
   const createNewQuiz = async () => {
     if (!user || isProcessing) return;
     setIsProcessing(true);
+    const newId = `proj_${Date.now()}`;
+    const newProj: Omit<QuizProject, 'id'> = {
+      name: 'Новый дизайн-квиз',
+      createdAt: Date.now(),
+      steps: DEFAULT_STEPS
+    };
     try {
-      const projectsRef = collection(db, 'users', user.uid, 'projects');
-      const templateSnap = await getDocs(collection(db, 'users', user.uid, 'templates'));
-      const templateDoc = templateSnap.docs.find(d => d.id === 'default');
-      const templateData = templateDoc?.data();
-
-      const newId = `proj_${Date.now()}`;
-      const newProj: Omit<QuizProject, 'id'> = {
-        name: templateData?.name || 'Новый дизайн-квиз',
-        createdAt: Date.now(),
-        steps: templateData?.steps || DEFAULT_STEPS
-      };
-
-      await setDoc(doc(projectsRef, newId), newProj);
-
-      if (templateData) {
-        // Копируем изображения из шаблона
-        const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
-        const newImagesRef = collection(db, 'users', user.uid, 'projects', newId, 'images');
-        const imagesSnap = await getDocs(templateImagesRef);
-        await Promise.all(imagesSnap.docs.map(d => 
-          setDoc(doc(newImagesRef, d.id), d.data())
-        ));
-      }
-
+      await setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
       setCurrentProjectId(newId);
-      setCurrentStepId((templateData?.steps || DEFAULT_STEPS)[0].id);
+      setCurrentStepId(DEFAULT_STEPS[0].id);
       setSelections({});
       setResult(null);
       setIsEditMode(true);
@@ -456,7 +412,7 @@ const QuizPage: React.FC = () => {
     }
   };
 
-  const updateProjectData = async (updates: Partial<QuizProject>, isTemplate?: boolean) => {
+  const updateProjectData = async (updates: Partial<QuizProject>) => {
     if (!user || !currentProjectId || !activeProject) return;
     try {
       const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId);
@@ -505,33 +461,6 @@ const QuizPage: React.FC = () => {
       }
       
       await updateDoc(projectRef, updates);
-
-      // Если это сохранение как шаблона
-      if (isTemplate) {
-        const templateRef = doc(db, 'users', user.uid, 'templates', 'default');
-        const templateData = {
-          name: updates.name || activeProject.name,
-          steps: updates.steps || activeProject.steps,
-          updatedAt: Date.now()
-        };
-        await setDoc(templateRef, templateData);
-
-        // Копируем изображения в подколлекцию шаблона
-        const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
-        const currentImagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
-        const imagesSnapshot = await getDocs(currentImagesRef);
-        
-        // Очищаем старые изображения шаблона
-        const oldTemplateImages = await getDocs(templateImagesRef);
-        await Promise.all(oldTemplateImages.docs.map(d => deleteDoc(d.ref)));
-
-        // Копируем новые
-        await Promise.all(imagesSnapshot.docs.map(d => 
-          setDoc(doc(templateImagesRef, d.id), d.data())
-        ));
-
-        showToast('Шаблон обновлен');
-      }
     } catch (e) {
       handleFirestoreError(e, 'update', `users/${user.uid}/projects/${currentProjectId}`);
     }
@@ -1010,7 +939,7 @@ const QuizPage: React.FC = () => {
                 steps={activeProject?.steps || []} 
                 quizName={activeProject?.name || ''}
                 onRename={(name) => updateProjectData({ name })}
-                onSave={(newSteps, isTemplate) => updateProjectData({ steps: newSteps }, isTemplate)} 
+                onSave={(newSteps) => updateProjectData({ steps: newSteps })} 
                 onExit={() => setIsEditMode(false)}
                 onExport={() => activeProject && handleExport(activeProject, { preventDefault: () => {}, stopPropagation: () => {} } as any)}
               />
