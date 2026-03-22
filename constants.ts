@@ -3,145 +3,643 @@ import { QuizStep } from './types';
 
 export const QUIZ_STEPS: QuizStep[] = [
   {
-    id: 'objectName',
-    title: 'Название',
-    question: 'Как называется ваш объект?',
+    title: "Название",
+    id: "objectName",
     isText: true,
-    options: []
+    options: [],
+    question: "Как называется ваш объект?"
   },
   {
-    id: 'projectType',
-    title: 'Тип проекта',
-    question: 'Что мы проектируем?',
     options: [
-      { id: 'interiors', label: 'Дизайн интерьера', description: 'Работа с внутренним пространством, мебелью и декором', image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=600' },
-      { id: 'architecture', label: 'Архитектура', description: 'Экстерьерные решения, фасады, форма здания и ландшафт', image: 'https://images.unsplash.com/photo-1518005020481-a682153259e0?auto=format&fit=crop&q=80&w=600' }
-    ]
+      {
+        label: "Дизайн интерьера",
+        id: "interiors",
+        description: "Работа с внутренним пространством, мебелью и декором"
+      },
+      {
+        description: "Экстерьерные решения, фасады, форма здания и ландшафт",
+        id: "architecture",
+        label: "Архитектура"
+      }
+    ],
+    isText: true,
+    question: "Что мы проектируем?пп",
+    title: "Тип проекта",
+    id: "projectType"
   },
   {
-    id: 'style',
-    title: 'Стиль',
-    question: 'Выберите базовый стиль дизайна:',
+    question: "Выберите базовый стиль дизайна:",
+    id: "style",
     options: [
-      { id: 'neoclassic', label: 'Неоклассика', image: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?auto=format&fit=crop&q=80&w=600' },
-      { id: 'artdeco', label: 'Артдеко', image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=600' },
-      { id: 'scandi', label: 'Сканди', image: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&q=80&w=600' },
-      { id: 'min', label: 'Минимализм', image: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=600' },
-      { id: 'loft', label: 'Лофт', image: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&q=80&w=1000' },
-      { id: 'ethnic', label: 'Этнический', image: 'https://images.unsplash.com/photo-1603126727210-9dd9359e1397?auto=format&fit=crop&q=80&w=600' }
-    ]
+      {
+        label: "Неоклассика",
+        id: "neoclassic",
+        image: ""
+      },
+      {
+        image: "",
+        id: "artdeco",
+        label: "Артдеко"
+      },
+      {
+        id: "scandi",
+        label: "Сканди"
+      },
+      {
+        id: "min",
+        label: "Минимализм"
+      },
+      {
+        label: "Лофт",
+        id: "loft"
+      },
+      {
+        label: "Этнический",
+        id: "ethnic"
+      }
+    ],
+    title: "Стиль"
   },
   {
-    id: 'acSystem',
-    title: 'Система кондиционирования',
-    question: 'Выберите вариант системы кондиционирования:',
-    options: [
-      { id: 'ac1', label: 'Обычный настенный конд', description: 'цена 500 уе за шт', image: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&q=80&w=600' },
-      { id: 'ac2', label: 'Канальный кондиционер с вентиляцией', description: 'цена 1500 уе за шт', image: 'https://images.unsplash.com/photo-1599394022918-6c276a50bb0a?auto=format&fit=crop&q=80&w=600' }
-    ]
-  },
-  {
-    id: 'radiators',
-    title: 'Радиаторы',
-    question: 'Тип отопления:',
-    options: [
-      { id: 'rad1', label: 'Вертикальный радиатор', description: 'цена от 500 уе за шт', image: 'https://images.unsplash.com/photo-1631675510692-299f06e30026?auto=format&fit=crop&q=80&w=600' },
-      { id: 'rad2', label: 'Панельный радиатор', description: 'цена 150 уе за шт', image: 'https://images.unsplash.com/photo-1520699049698-acd2fccb8cc8?auto=format&fit=crop&q=80&w=600' },
-      { id: 'rad3', label: 'Стилизованные радиаторы', description: 'цена 700 уе за шт', image: 'https://images.unsplash.com/photo-1584622781564-1d9876a13d00?auto=format&fit=crop&q=80&w=600' }
-    ]
-  },
-  {
-    id: 'plumbingColor',
-    title: 'Цвет сантехники',
-    question: 'Выберите цвета (можно несколько):',
+    id: "step_1774165175950",
+    title: "Отделка стен",
+    question: "Выберите варианты отделки (можно несколько):",
     isMulti: true,
     options: [
-      { id: 'pl1', label: 'хром', image: 'https://images.unsplash.com/photo-1542013936693-884638332954?auto=format&fit=crop&q=80&w=600' },
-      { id: 'pl2', label: 'брашед', image: 'https://images.unsplash.com/photo-1612151631551-76495b6c3182?auto=format&fit=crop&q=80&w=600' },
-      { id: 'pl3', label: 'брашед голд', image: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?auto=format&fit=crop&q=80&w=600' },
-      { id: 'pl4', label: 'брашед роз голд', image: 'https://images.unsplash.com/photo-1620626011761-9963d7521476?auto=format&fit=crop&q=80&w=600' },
-      { id: 'pl5', label: 'Ган грей', image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&q=80&w=600' }
+      {
+        id: "opt_1774165175950",
+        label: "обои"
+      },
+      {
+        id: "opt_1774165210631",
+        label: "покраска"
+      },
+      {
+        label: "декоративная штукатурка ",
+        id: "opt_1774165214111"
+      },
+      {
+        label: "декор панели",
+        id: "opt_1774165221819"
+      },
+      {
+        label: "зеркала",
+        id: "opt_1774165222837"
+      },
+      {
+        label: "лофт",
+        id: "opt_1774165224673"
+      },
+      {
+        id: "opt_1774165225710",
+        label: "текстиль и матерчатые поверхности "
+      }
     ]
   },
   {
-    id: 'tileFormat',
-    title: 'Формат керамогранита',
-    question: 'Размер плитки (можно несколько):',
+    options: [
+      {
+        label: "Строгие",
+        id: "mc1"
+      },
+      {
+        label: "С узором",
+        id: "mc2"
+      },
+      {
+        id: "mc3",
+        label: "Классические"
+      },
+      {
+        id: "opt_1774165387839",
+        label: "Без молдингов"
+      }
+    ],
+    title: "Молдинги и карнизы",
+    question: "Тип декора стен и потолка:",
+    id: "moldings"
+  },
+  {
+    question: "Цветовая политра интерьера ",
+    id: "step_1774165462844",
+    title: "Новый раздел",
+    options: [
+      {
+        label: "Монотонный интерьер  ",
+        id: "opt_1774165462844"
+      },
+      {
+        label: "Контрастный интерьер ",
+        id: "opt_1774165488295"
+      },
+      {
+        label: "Элегантный темный интерьер ",
+        id: "opt_1774165489263"
+      },
+      {
+        id: "opt_1774165490475",
+        label: "Насыщенный интерьер   "
+      },
+      {
+        id: "opt_1774165491899",
+        label: "Black and white интерьер  "
+      }
+    ]
+  },
+  {
+    id: "flooring",
+    question: "Материал пола:",
+    title: "Напольное покрытие",
+    options: [
+      {
+        id: "fl1",
+        label: "ламинат",
+        description: "от 10уе м2"
+      },
+      {
+        id: "fl2",
+        label: "кварцвинил",
+        description: "от 25 уе м2"
+      },
+      {
+        id: "fl3",
+        label: "Паркет инжинерная доска",
+        description: "от 70уе м2"
+      },
+      {
+        description: "от 15уе м2",
+        label: "Кавролан",
+        id: "fl4"
+      }
+    ]
+  },
+  {
+    title: "Текстура напольного покрытия",
+    options: [
+      {
+        id: "ft1",
+        label: "Светлая"
+      },
+      {
+        label: "Темная",
+        id: "ft2"
+      }
+    ],
+    question: "Цветовой тон пола:",
+    id: "flooringTexture"
+  },
+  {
+    question: "Тип отопления:",
+    options: [
+      {
+        label: "Вертикальный радиатор",
+        id: "rad1",
+        description: "цена от 500 уе за шт"
+      },
+      {
+        description: "цена 150 уе за шт",
+        label: "Панельный радиатор",
+        id: "rad2"
+      },
+      {
+        description: "цена 700 уе за шт",
+        label: "Стилизованные радиаторы",
+        id: "rad3"
+      }
+    ],
+    isMulti: false,
+    id: "radiators",
+    title: "Радиаторы"
+  },
+  {
+    title: "Система кондиционирования",
+    options: [
+      {
+        description: "цена 500 уе за шт",
+        label: "Только настенный кондиционер ",
+        id: "ac1"
+      },
+      {
+        description: "цена 1500 уе за шт",
+        label: "Канальная система вентиляции и кондиционирования ",
+        id: "ac2"
+      },
+      {
+        label: "Настенный кондиционер и бризер ",
+        id: "opt_1774044548604"
+      }
+    ],
+    id: "acSystem",
+    question: "Тип системы кондиционирования и вентиляции:"
+  },
+  {
+    title: "Новый раздел",
+    options: [
+      {
+        label: "Водяной по всей площади ",
+        id: "opt_1774165790211"
+      },
+      {
+        label: "Водяной только в зонах керамогранита ",
+        id: "opt_1774165801946"
+      },
+      {
+        id: "opt_1774165803093",
+        label: "Электрический только в зонах керамогранита "
+      }
+    ],
+    question: "Отопление теплого пола:",
+    id: "step_1774165790211"
+  },
+  {
+    question: "Выберите сценарии света:",
+    options: [
+      {
+        id: "li1",
+        label: "точечные галогены"
+      },
+      {
+        label: "трековые светильники",
+        id: "li2"
+      },
+      {
+        id: "li3",
+        label: "бра"
+      },
+      {
+        label: "торшеры",
+        id: "li4"
+      },
+      {
+        label: "люстры",
+        id: "li5"
+      },
+      {
+        label: "подсветка",
+        id: "opt_1774165869859"
+      }
+    ],
+    isMulti: true,
+    id: "lighting",
+    title: "Освещение"
+  },
+  {
+    id: "step_1774165930435",
+    question: "Форма потолка",
+    options: [
+      {
+        label: "Прямой потолок из ГКЛ",
+        id: "opt_1774165930435"
+      },
+      {
+        id: "opt_1774165946578",
+        label: "Прямой натяжной потолок"
+      },
+      {
+        id: "opt_1774165947613",
+        label: "Потолок с фигурами "
+      }
+    ],
+    title: "Новый раздел"
+  },
+  {
+    id: "step_1774166013810",
+    question: "Вид примыканий ",
+    options: [
+      {
+        label: "Потолочный теневой профиль ",
+        id: "opt_1774166013810"
+      },
+      {
+        id: "opt_1774166028144",
+        label: "Теневой плинтус "
+      },
+      {
+        label: "Теневой плинтус с подсветкой  ",
+        id: "opt_1774166029069"
+      },
+      {
+        id: "opt_1774166030010",
+        label: "ЛМДФ плинтус"
+      },
+      {
+        label: "Накладной L образный плинтус ",
+        id: "opt_1774166031454"
+      },
+      {
+        id: "opt_1774166032569",
+        label: "Фриз"
+      },
+      {
+        label: "Накладной металлический профиль ",
+        id: "opt_1774166033713"
+      },
+      {
+        label: "Накладной скрытый плинтус",
+        id: "opt_1774166034810"
+      }
+    ],
+    title: "Новый раздел"
+  },
+  {
+    title: "Сан узел ",
+    id: "tileTexture",
+    options: [
+      {
+        label: "Монотонная",
+        id: "tt1"
+      },
+      {
+        id: "tt2",
+        label: "Контрастная"
+      },
+      {
+        label: "Насыщенная",
+        id: "tt3"
+      }
+    ],
+    isMulti: true,
+    question: "Выберите цветовую гамму сан узла"
+  },
+  {
+    id: "tileFormat",
+    title: "Формат керамогранита",
+    question: "Размер плитки (можно несколько):",
     isMulti: true,
     options: [
-      { id: 'tf1', label: 'размер 1,20х0,60', description: 'цена от 15уе м2', image: 'https://images.unsplash.com/photo-1584622781564-1d9876a13d00?auto=format&fit=crop&q=80&w=600' },
-      { id: 'tf2', label: 'размер 1,50х0,75', description: 'цена от 20уе м2', image: 'https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?auto=format&fit=crop&q=80&w=600' },
-      { id: 'tf3', label: 'крупноформатный 3х1', description: 'от 100уе м2', image: 'https://images.unsplash.com/photo-1563298723-dcfebaa392e3?auto=format&fit=crop&q=80&w=600' },
-      { id: 'tf4', label: 'декоративная плитка', description: 'от 100уе м2', image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=600' }
+      {
+        label: "размер 1,20х0,60",
+        id: "tf1",
+        description: "цена от 15уе м2"
+      },
+      {
+        id: "tf2",
+        label: "размер 1,50х0,75",
+        description: "цена от 20уе м2"
+      },
+      {
+        id: "tf3",
+        label: "крупноформатный 3х1",
+        description: "от 100уе м2"
+      },
+      {
+        label: "декоративная плитка",
+        id: "tf4",
+        description: "от 100уе м2"
+      }
     ]
   },
   {
-    id: 'tileTexture',
-    title: 'Текстура керамогранита',
-    question: 'Тип поверхности (можно несколько):',
+    options: [
+      {
+        id: "opt_1774166283373",
+        label: "Однотонная"
+      },
+      {
+        id: "opt_1774166299270",
+        label: "С прожилками натурального камня "
+      },
+      {
+        label: "Глянцевая",
+        id: "opt_1774166300204"
+      },
+      {
+        label: "Матовая",
+        id: "opt_1774166301152"
+      }
+    ],
+    title: "Новый раздел",
+    id: "step_1774166283373",
+    question: "Тип поверхности (можно несколько):"
+  },
+  {
+    id: "plumbingColor",
+    title: "Цвет сантехники",
+    question: "Цвет металла сантехнических приборов",
+    options: [
+      {
+        id: "pl1",
+        label: "хром"
+      },
+      {
+        id: "pl2",
+        label: "брашед"
+      },
+      {
+        label: "брашед голд",
+        id: "pl3"
+      },
+      {
+        label: "брашед роз голд",
+        id: "pl4"
+      },
+      {
+        label: "Ган грей",
+        id: "pl5"
+      }
+    ],
+    isMulti: true
+  },
+  {
+    question: "Зона купания ",
     isMulti: true,
     options: [
-      { id: 'tt1', label: 'однотонная', image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=600' },
-      { id: 'tt2', label: 'контрастная', image: 'https://images.unsplash.com/photo-1600607687644-c7171bb3e29b?auto=format&fit=crop&q=80&w=600' },
-      { id: 'tt3', label: 'Насыщенная', image: 'https://images.unsplash.com/photo-1600585154542-6379b9d20c2e?auto=format&fit=crop&q=80&w=600' }
+      {
+        id: "opt_1774166472779",
+        label: "Только душевая "
+      },
+      {
+        label: "Только ванна ",
+        id: "opt_1774166481477"
+      },
+      {
+        label: "Душевая и альтернативная ванна ",
+        id: "opt_1774166482564"
+      },
+      {
+        label: "Душевая и отдельно стоящая ванна в одном сан узле ",
+        id: "opt_1774166483639"
+      }
+    ],
+    id: "step_1774166472779",
+    title: "Новый раздел"
+  },
+  {
+    id: "step_1774166538737",
+    question: "Сушилка",
+    options: [
+      {
+        label: "Электрическая",
+        id: "opt_1774166538737"
+      },
+      {
+        label: "Водяная",
+        id: "opt_1774166559152"
+      }
+    ],
+    title: "Новый раздел"
+  },
+  {
+    title: "Новый раздел",
+    options: [
+      {
+        label: "Минимальная необходимая кухня ",
+        id: "opt_1774166579954"
+      },
+      {
+        label: "Полноценная рабочая кухня ",
+        id: "opt_1774166602172"
+      }
+    ],
+    question: "Кухня",
+    id: "step_1774166579954"
+  },
+  {
+    id: "step_1774166617960",
+    question: "Кухонный остров ",
+    options: [
+      {
+        label: "Рабочая зона на острове ",
+        id: "opt_1774166617960"
+      },
+      {
+        id: "opt_1774166631100",
+        label: "Кухонный остров с баром "
+      },
+      {
+        label: "Без острова ",
+        id: "opt_1774166633056"
+      }
+    ],
+    title: "Новый раздел"
+  },
+  {
+    title: "Новый раздел",
+    options: [
+      {
+        label: "Стеклянные фасады ",
+        id: "opt_1774166662746"
+      },
+      {
+        label: "Только глухие фасады ",
+        id: "opt_1774166680327"
+      }
+    ],
+    id: "step_1774166662746",
+    question: "Фасады кухни "
+  },
+  {
+    id: "step_1774166697944",
+    question: "Техника",
+    title: "Новый раздел",
+    options: [
+      {
+        id: "opt_1774166697944",
+        label: "Стиральная машина с функцией сушки "
+      },
+      {
+        label: "ТВ",
+        id: "opt_1774166723070"
+      },
+      {
+        label: "Проектор",
+        id: "opt_1774166724070"
+      },
+      {
+        label: "Станция робота пылесоса ",
+        id: "opt_1774166725295"
+      },
+      {
+        label: "Очиститель увлажнитель воздуха в каждом помещении ",
+        id: "opt_1774166726226"
+      },
+      {
+        id: "opt_1774166726988",
+        label: "Стирально сушильная машина "
+      },
+      {
+        label: "Электро плита ",
+        id: "opt_1774166728161"
+      },
+      {
+        id: "opt_1774166728963",
+        label: "Газовая плита "
+      },
+      {
+        label: "Вытяжка",
+        id: "opt_1774166729721"
+      },
+      {
+        label: "Встроенный холодильник 70см ",
+        id: "opt_1774166731061"
+      },
+      {
+        label: "Встроенный холодильник 120см ",
+        id: "opt_1774166731848"
+      },
+      {
+        label: "Полувстраеваемый холодильник 110см ",
+        id: "opt_1774166732596"
+      },
+      {
+        label: "Микроволновая печь ",
+        id: "opt_1774166733345"
+      },
+      {
+        id: "opt_1774166734524",
+        label: "Духовая печь "
+      },
+      {
+        id: "opt_1774166735492",
+        label: "Духовая печь с функцией микроволновки "
+      },
+      {
+        id: "opt_1774166736511",
+        label: "Посудомоечная машина 45см "
+      },
+      {
+        label: "Посудомоечная машина 60см ",
+        id: "opt_1774166737219"
+      },
+      {
+        label: "Фильтр питьевой воды для кухни ",
+        id: "opt_1774166737928"
+      },
+      {
+        id: "opt_1774166739179",
+        label: "Измельчитель бытовых отходов "
+      },
+      {
+        id: "opt_1774166740051",
+        label: "Встроенная в потолок аудиосистема "
+      },
+      {
+        label: "Видеонаблюдение",
+        id: "opt_1774166740712"
+      },
+      {
+        label: "Минибар",
+        id: "opt_1774166741628"
+      }
     ]
   },
   {
-    id: 'flooring',
-    title: 'Напольное покрытие',
-    question: 'Материал пола:',
+    title: "Новый раздел",
     options: [
-      { id: 'fl1', label: 'ламинат', description: 'от 10уе м2', image: 'https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?auto=format&fit=crop&q=80&w=600' },
-      { id: 'fl2', label: 'кварцвинил', description: 'от 25 уе м2', image: 'https://images.unsplash.com/photo-1622397333309-3056849bc70b?auto=format&fit=crop&q=80&w=600' },
-      { id: 'fl3', label: 'Паркет инжинерная доска', description: 'от 70уе м2', image: 'https://images.unsplash.com/photo-1516455590571-18256e5bb9ff?auto=format&fit=crop&q=80&w=600' },
-      { id: 'fl4', label: 'Кавролан', description: 'от 15уе м2', image: 'https://images.unsplash.com/photo-1534349762230-e0cadf78f505?auto=format&fit=crop&q=80&w=600' }
-    ]
-  },
-  {
-    id: 'flooringTexture',
-    title: 'Текстура напольного покрытия',
-    question: 'Цветовой тон пола:',
-    options: [
-      { id: 'ft1', label: 'Светлая', image: 'https://images.unsplash.com/photo-1600566753086-00f18fb6f3ea?auto=format&fit=crop&q=80&w=600' },
-      { id: 'ft2', label: 'Темная', image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=600' }
-    ]
-  },
-  {
-    id: 'wallFinish',
-    title: 'Отделка стен',
-    question: 'Выберите варианты отделки (можно несколько):',
-    isMulti: true,
-    options: [
-      { id: 'wf1', label: 'обои', image: 'https://images.unsplash.com/photo-1615529151169-7b1ff50dc7f2?auto=format&fit=crop&q=80&w=600' },
-      { id: 'wf2', label: 'покраска', image: 'https://images.unsplash.com/photo-1562664377-709f225b0542?auto=format&fit=crop&q=80&w=600' },
-      { id: 'wf3', label: 'декоративная штукатурка', image: 'https://images.unsplash.com/photo-1536640828551-73934f59346d?auto=format&fit=crop&q=80&w=600' },
-      { id: 'wf4', label: 'Декор панели', image: 'https://images.unsplash.com/photo-1615876234886-fd9a39faa97f?auto=format&fit=crop&q=80&w=600' },
-      { id: 'wf5', label: 'Зеркала', image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=600' },
-      { id: 'wf6', label: 'Лофт', image: 'https://images.unsplash.com/photo-1536376074432-c6258d1b1ee3?auto=format&fit=crop&q=80&w=600' },
-      { id: 'wf7', label: 'текстиль и матерчатые поверхности', image: 'https://images.unsplash.com/photo-1603126727210-9dd9359e1397?auto=format&fit=crop&q=80&w=600' }
-    ]
-  },
-  {
-    id: 'moldings',
-    title: 'Молдинги и карнизы',
-    question: 'Тип декора стен и потолка:',
-    options: [
-      { id: 'mc1', label: 'Строгие', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=600' },
-      { id: 'mc2', label: 'С узором', image: 'https://images.unsplash.com/photo-1615873968403-89e068628265?auto=format&fit=crop&q=80&w=600' },
-      { id: 'mc3', label: 'Классические', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=600' }
-    ]
-  },
-  {
-    id: 'lighting',
-    title: 'Освещение',
-    question: 'Выберите сценарии света:',
-    isMulti: true,
-    options: [
-      { id: 'li1', label: 'точечные галогены', image: 'https://images.unsplash.com/photo-1565814329452-e1efa11c5b89?auto=format&fit=crop&q=80&w=600' },
-      { id: 'li2', label: 'трековые светильники', image: 'https://images.unsplash.com/photo-1553095066-5014bc7b7f2d?auto=format&fit=crop&q=80&w=600' },
-      { id: 'li3', label: 'бра', image: 'https://images.unsplash.com/photo-1540932239986-30128078f3c5?auto=format&fit=crop&q=80&w=600' },
-      { id: 'li4', label: 'торшеры', image: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&q=80&w=600' },
-      { id: 'li5', label: 'люстры', image: 'https://images.unsplash.com/photo-1543013309-0d1f4edeb868?auto=format&fit=crop&q=80&w=600' }
-    ]
+      {
+        id: "opt_1774167035396",
+        label: "Отдельная гардеробная "
+      },
+      {
+        label: "Рабочая зона",
+        id: "opt_1774167051483"
+      },
+      {
+        id: "opt_1774167052493",
+        label: "Трюмо"
+      }
+    ],
+    question: "Функционал спальни ",
+    id: "step_1774167035396"
   }
 ];

@@ -31,6 +31,8 @@ import {
   History
 } from 'lucide-react';
 
+import { resizeImage } from './utils/image';
+
 declare global {
   interface Window {
     aistudio: {
@@ -43,7 +45,32 @@ declare global {
 const QuizPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const handleFirestoreError = (error: unknown, operationType: string, path: string | null) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        tenantId: auth.currentUser?.tenantId,
+        providerInfo: auth.currentUser?.providerData.map(provider => ({
+          providerId: provider.providerId,
+          displayName: provider.displayName,
+          email: provider.email,
+          photoUrl: provider.photoURL
+        })) || []
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  };
+
   const [projects, setProjects] = useState<QuizProject[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [currentStepId, setCurrentStepId] = useState<string>('');
   const [history, setHistory] = useState<string[]>([]);
@@ -72,17 +99,19 @@ const QuizPage: React.FC = () => {
       if (loadedProjects.length === 0) {
         // Create default project if none exist
         const defaultProj: Omit<QuizProject, 'id'> = {
-          name: 'Базовый интерьерный квиз',
+          name: 'Новый дизайн-квиз',
           createdAt: Date.now(),
           steps: DEFAULT_STEPS
         };
         setDoc(doc(projectsRef, 'default'), defaultProj);
       } else {
         setProjects(loadedProjects);
+        setIsInitialLoading(false);
       }
     }, (error) => {
       console.error("Firestore error:", error);
       showToast("Ошибка загрузки проектов", "error");
+      setIsInitialLoading(false);
     });
 
     return () => unsubscribe();
@@ -103,8 +132,21 @@ const QuizPage: React.FC = () => {
     e.stopPropagation();
     
     const zip = new JSZip();
-    zip.file('quiz.json', JSON.stringify(proj));
     
+    // Создаем копию проекта без тяжелых base64 данных в JSON
+    const cleanProj = JSON.parse(JSON.stringify(proj)) as QuizProject;
+    cleanProj.steps.forEach(step => {
+      step.options.forEach(opt => {
+        if (opt.image) {
+          // Очищаем поле image в JSON, так как картинка будет лежать отдельным файлом
+          opt.image = ""; 
+        }
+      });
+    });
+
+    zip.file('quiz.json', JSON.stringify(cleanProj, null, 2));
+    
+    // Добавляем изображения в ZIP отдельными файлами
     proj.steps.forEach(step => {
       step.options.forEach(opt => {
         if (opt.image) {
@@ -126,9 +168,10 @@ const QuizPage: React.FC = () => {
     if (!file || !user) return;
 
     setLoading(true);
-    setLoadingStage('Импорт проекта из ZIP...');
+    setLoadingStage('Подготовка к импорту...');
 
     try {
+      setLoadingStage('Распаковка ZIP-архива...');
       const zip = await JSZip.loadAsync(file);
       
       // 1. Поиск quiz.json
@@ -137,6 +180,7 @@ const QuizPage: React.FC = () => {
         throw new Error('Файл quiz.json не найден в архиве');
       }
 
+      setLoadingStage('Чтение структуры проекта...');
       const jsonContent = await jsonFile.async('string');
       const projectData = JSON.parse(jsonContent);
       
@@ -146,32 +190,48 @@ const QuizPage: React.FC = () => {
 
       // 2. Загрузка изображений
       const steps = JSON.parse(JSON.stringify(projectData.steps)) as QuizStepType[];
-      let updatedCount = 0;
+      
+      // Создаем карту опций для быстрого поиска
+      const optionMap: Record<string, any> = {};
+      steps.forEach(step => {
+        step.options.forEach(opt => {
+          optionMap[opt.id] = opt;
+        });
+      });
 
-      for (const [filename, zipEntry] of Object.entries(zip.files)) {
-        if (zipEntry.dir) continue;
+      let updatedCount = 0;
+      const zipFiles = Object.entries(zip.files).filter(([_, entry]) => !entry.dir);
+      const totalFiles = zipFiles.length;
+      let processedFiles = 0;
+
+      for (const [filename, zipEntry] of zipFiles) {
+        processedFiles++;
+        if (processedFiles % 5 === 0 || processedFiles === totalFiles) {
+          setLoadingStage(`Обработка файлов: ${processedFiles}/${totalFiles}...`);
+        }
+
         const baseName = filename.split('/').pop() || '';
         const idMatch = baseName.match(/(opt_[^.]+)\.(jpg|jpeg|png|webp)/i);
         
         if (idMatch) {
           const optId = idMatch[1];
-          const base64 = await zipEntry.async('base64');
-          const ext = idMatch[2].toLowerCase();
-          const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-          const dataUrl = `data:${mimeType};base64,${base64}`;
-
-          steps.forEach(step => {
-            step.options.forEach(opt => {
-              if (opt.id === optId) {
-                opt.image = dataUrl;
-                updatedCount++;
-              }
-            });
-          });
+          if (optionMap[optId]) {
+            const base64 = await zipEntry.async('base64');
+            const ext = idMatch[2].toLowerCase();
+            const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+            const fullBase64 = `data:${mimeType};base64,${base64}`;
+            
+            // Сжимаем изображение перед сохранением в проект
+            setLoadingStage(`Сжатие изображения ${processedFiles}/${totalFiles}...`);
+            const resized = await resizeImage(fullBase64, 800); // Уменьшаем до 800px для экономии места
+            optionMap[optId].image = resized;
+            updatedCount++;
+          }
         }
       }
 
       // 3. Сохранение в Firebase
+      setLoadingStage('Сохранение проекта в облако...');
       const newId = `import_${Date.now()}`;
       const newProj: Omit<QuizProject, 'id'> = {
         name: projectData.name || 'Импортированный квиз',
@@ -179,7 +239,24 @@ const QuizPage: React.FC = () => {
         steps: steps
       };
 
-      await setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
+      // Проверка размера (лимит Firestore 1MB)
+      const estimatedSize = JSON.stringify(newProj).length;
+      if (estimatedSize > 1000000) {
+        throw new Error(`Проект слишком велик (${(estimatedSize / 1024 / 1024).toFixed(2)}MB). Лимит Firestore — 1MB. Уменьшите количество или размер изображений.`);
+      }
+
+      // Сохранение с таймаутом
+      const savePromise = setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Превышено время ожидания сохранения в облако. Проверьте интернет-соединение.')), 30000)
+      );
+
+      try {
+        await Promise.race([savePromise, timeoutPromise]);
+      } catch (saveErr) {
+        handleFirestoreError(saveErr, 'write', `users/${user.uid}/projects/${newId}`);
+      }
+
       showToast(`Проект импортирован! Загружено ${updatedCount} изображений.`, 'success');
       
       // Сразу открываем его
@@ -279,12 +356,20 @@ const QuizPage: React.FC = () => {
   };
 
   const updateProjectData = async (updates: Partial<QuizProject>) => {
-    if (!user || !currentProjectId) return;
+    if (!user || !currentProjectId || !activeProject) return;
     try {
+      // Проверка размера перед обновлением (Firestore limit 1MB)
+      const fullProject = { ...activeProject, ...updates };
+      const estimatedSize = JSON.stringify(fullProject).length;
+      if (estimatedSize > 1000000) {
+        showToast(`Проект слишком велик (${(estimatedSize / 1024 / 1024).toFixed(2)}MB). Уменьшите размер или количество изображений.`, 'error');
+        return;
+      }
+
       const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId);
       await updateDoc(projectRef, updates);
     } catch (e) {
-      showToast('Ошибка обновления', 'error');
+      handleFirestoreError(e, 'update', `users/${user.uid}/projects/${currentProjectId}`);
     }
   };
 
@@ -526,61 +611,76 @@ const QuizPage: React.FC = () => {
             layout
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
           >
-            {projects.map((proj, idx) => (
-              <motion.div 
-                key={proj.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={(e) => { 
-                  if (isProcessing) return;
-                  e.preventDefault();
-                  setCurrentProjectId(proj.id); 
-                  setCurrentStepId(proj.steps[0].id); 
-                  setSelections({}); 
-                  setResult(null); 
-                  setIsEditMode(false); 
-                }} 
-                className="group bg-white p-12 rounded-[4rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_40px_80px_-20px_rgba(44,62,80,0.15)] relative overflow-hidden flex flex-col min-h-[380px]"
-              >
-                <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-20">
-                  <button 
-                    onClick={(e) => handleExport(proj, e)} 
-                    className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-orange-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
-                    title="Экспорт (ZIP)"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={(e) => duplicateProject(proj.id, e)} 
-                    className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
-                    title="Дублировать"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={(e) => handleDeleteProject(proj.id, e)} 
-                    className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-red-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
-                    title="Удалить"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-orange-500 group-hover:text-white transition-all mb-12 shadow-sm border border-gray-100">
-                  <LayoutDashboard className="w-10 h-10" />
-                </div>
-                <h3 className="text-4xl font-bold text-[#2C3E50] mb-4 serif leading-tight">{proj.name}</h3>
-                <div className="mt-auto pt-8 border-t border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="w-3 h-3 text-gray-400" />
-                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{proj.steps.length} ШАГОВ</p>
+            {isInitialLoading ? (
+              // Skeleton loaders
+              [1, 2, 3].map((i) => (
+                <div key={i} className="bg-white p-12 rounded-[4rem] border border-[#E8E2D9] animate-pulse min-h-[380px] flex flex-col">
+                  <div className="w-20 h-20 bg-gray-100 rounded-3xl mb-12" />
+                  <div className="h-10 bg-gray-100 rounded-xl w-3/4 mb-4" />
+                  <div className="h-6 bg-gray-50 rounded-lg w-1/2 mb-4" />
+                  <div className="mt-auto pt-8 border-t border-gray-100 flex justify-between">
+                    <div className="h-4 bg-gray-50 rounded w-20" />
+                    <div className="h-4 bg-gray-50 rounded w-12" />
                   </div>
-                  <span className="text-orange-500 text-xs font-bold uppercase group-hover:translate-x-2 transition-transform flex items-center gap-1">
-                    Старт <ChevronRight className="w-4 h-4" />
-                  </span>
                 </div>
-              </motion.div>
-            ))}
+              ))
+            ) : (
+              projects.map((proj, idx) => (
+                <motion.div 
+                  key={proj.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  onClick={(e) => { 
+                    if (isProcessing) return;
+                    e.preventDefault();
+                    setCurrentProjectId(proj.id); 
+                    setCurrentStepId(proj.steps[0].id); 
+                    setSelections({}); 
+                    setResult(null); 
+                    setIsEditMode(false); 
+                  }} 
+                  className="group bg-white p-12 rounded-[4rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_40px_80px_-20px_rgba(44,62,80,0.15)] relative overflow-hidden flex flex-col min-h-[380px]"
+                >
+                  <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-20">
+                    <button 
+                      onClick={(e) => handleExport(proj, e)} 
+                      className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-orange-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                      title="Экспорт (ZIP)"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => duplicateProject(proj.id, e)} 
+                      className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                      title="Дублировать"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteProject(proj.id, e)} 
+                      className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-red-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                      title="Удалить"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-orange-500 group-hover:text-white transition-all mb-12 shadow-sm border border-gray-100">
+                    <LayoutDashboard className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-4xl font-bold text-[#2C3E50] mb-4 serif leading-tight">{proj.name}</h3>
+                  <div className="mt-auto pt-8 border-t border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <History className="w-3 h-3 text-gray-400" />
+                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{proj.steps.length} ШАГОВ</p>
+                    </div>
+                    <span className="text-orange-500 text-xs font-bold uppercase group-hover:translate-x-2 transition-transform flex items-center gap-1">
+                      Старт <ChevronRight className="w-4 h-4" />
+                    </span>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </motion.div>
         </div>
 
