@@ -241,14 +241,14 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap gap-8 justify-between items-center bg-white p-10 rounded-[3rem] border border-[#E8E2D9] shadow-sm"
+          className="flex flex-wrap gap-6 justify-between items-center bg-white p-8 rounded-[2.5rem] border border-[#E8E2D9] shadow-sm"
         >
           <div className="flex-1 min-w-[300px]">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Название квиза</label>
             <input 
               value={quizName} 
               onChange={(e) => onRename(e.target.value)} 
-              className="text-4xl md:text-5xl font-bold text-[#2C3E50] serif bg-transparent outline-none w-full focus:border-orange-500 transition-all" 
+              className="text-3xl md:text-4xl font-bold text-[#2C3E50] serif bg-transparent outline-none w-full focus:border-orange-500 transition-all" 
             />
           </div>
           <div className="flex flex-wrap gap-3">
@@ -272,7 +272,6 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
           {steps.map((step, index) => (
             <motion.div 
               key={step.id} 
-              layout
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               draggable 
@@ -286,7 +285,7 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                 onSave(newSteps);
                 setDraggedIndex(null); setDragOverIndex(null);
               }} 
-              className={`bg-white p-10 rounded-[4rem] border-2 transition-all ${draggedIndex === index ? 'opacity-30' : 'border-gray-100'} ${dragOverIndex === index ? 'border-orange-500 border-dashed' : 'hover:border-[#E8E2D9]'} relative shadow-sm group`}
+              className={`bg-white p-8 rounded-[2.5rem] border-2 transition-all ${draggedIndex === index ? 'opacity-30' : 'border-gray-100'} ${dragOverIndex === index ? 'border-orange-500 border-dashed' : 'hover:border-[#E8E2D9]'} relative shadow-sm group`}
             >
               
               <div className="absolute top-8 right-8 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -370,7 +369,7 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                   <input 
                     value={step.question} 
                     onChange={e => updateStep(step.id, { question: e.target.value })} 
-                    className="w-full p-6 bg-gray-50 border border-gray-100 rounded-2xl text-2xl font-bold serif outline-none focus:border-orange-500 text-[#2C3E50] transition-all" 
+                    className="w-full p-5 bg-gray-50 border border-gray-100 rounded-xl text-xl font-bold serif outline-none focus:border-orange-500 text-[#2C3E50] transition-all" 
                   />
                 </div>
               </div>
@@ -379,9 +378,8 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
                 <div className="space-y-4 pl-10">
                    {step.options.map(opt => (
                      <motion.div 
-                        layout
                         key={opt.id} 
-                        className="flex flex-wrap items-center gap-4 p-5 bg-gray-50 rounded-3xl border border-gray-100 group/opt hover:border-[#E8E2D9] transition-all"
+                        className="flex flex-wrap items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 group/opt hover:border-[#E8E2D9] transition-all"
                       >
                         <div 
                           onClick={() => {
@@ -449,7 +447,7 @@ const QuizEditor: React.FC<Props> = ({ steps, quizName, onRename, onSave, onExit
           ))}
           <button 
             onClick={addStep} 
-            className="w-full py-20 rounded-[4rem] border-4 border-dashed border-gray-100 text-gray-300 font-bold hover:border-orange-500 hover:text-orange-500 transition-all uppercase tracking-[0.3em] text-[11px] bg-white group"
+            className="w-full py-16 rounded-[2.5rem] border-4 border-dashed border-gray-100 text-gray-300 font-bold hover:border-orange-500 hover:text-orange-500 transition-all uppercase tracking-[0.3em] text-[11px] bg-white group"
           >
             <div className="flex flex-col items-center gap-4 group-hover:scale-110 transition-transform">
               <Plus className="w-10 h-10" />

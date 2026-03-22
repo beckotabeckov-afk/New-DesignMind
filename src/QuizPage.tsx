@@ -564,7 +564,7 @@ const QuizPage: React.FC = () => {
 
   if (!currentProjectId) {
     return (
-      <div className="min-h-screen bg-[#fafafa] p-6 md:p-12">
+      <div className="min-h-screen bg-[#fafafa] px-6 py-12 md:px-12 md:py-20">
         <AnimatePresence>
           {toast && (
             <motion.div 
@@ -584,7 +584,7 @@ const QuizPage: React.FC = () => {
               <motion.h1 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-7xl md:text-9xl font-bold serif text-[#2C3E50] tracking-tight"
+                className="text-5xl md:text-7xl font-bold serif text-[#2C3E50] tracking-tight"
               >
                 Design<span className="italic font-light text-orange-400">Mind</span>
               </motion.h1>
@@ -608,19 +608,18 @@ const QuizPage: React.FC = () => {
           </header>
           
           <motion.div 
-            layout
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
             {isInitialLoading ? (
               // Skeleton loaders
               [1, 2, 3].map((i) => (
-                <div key={i} className="bg-white p-12 rounded-[4rem] border border-[#E8E2D9] animate-pulse min-h-[380px] flex flex-col">
-                  <div className="w-20 h-20 bg-gray-100 rounded-3xl mb-12" />
-                  <div className="h-10 bg-gray-100 rounded-xl w-3/4 mb-4" />
-                  <div className="h-6 bg-gray-50 rounded-lg w-1/2 mb-4" />
-                  <div className="mt-auto pt-8 border-t border-gray-100 flex justify-between">
-                    <div className="h-4 bg-gray-50 rounded w-20" />
-                    <div className="h-4 bg-gray-50 rounded w-12" />
+                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-[#E8E2D9] animate-pulse min-h-[320px] flex flex-col">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl mb-8" />
+                  <div className="h-8 bg-gray-100 rounded-lg w-3/4 mb-4" />
+                  <div className="h-4 bg-gray-50 rounded-md w-1/2 mb-4" />
+                  <div className="mt-auto pt-6 border-t border-gray-100 flex justify-between">
+                    <div className="h-3 bg-gray-50 rounded w-16" />
+                    <div className="h-3 bg-gray-50 rounded w-10" />
                   </div>
                 </div>
               ))
@@ -640,36 +639,36 @@ const QuizPage: React.FC = () => {
                     setResult(null); 
                     setIsEditMode(false); 
                   }} 
-                  className="group bg-white p-12 rounded-[4rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_40px_80px_-20px_rgba(44,62,80,0.15)] relative overflow-hidden flex flex-col min-h-[380px]"
+                  className="group bg-white p-8 rounded-[2.5rem] border border-[#E8E2D9] hover:border-[#2C3E50] cursor-pointer transition-all hover:shadow-[0_30px_60px_-15px_rgba(44,62,80,0.12)] relative overflow-hidden flex flex-col min-h-[320px]"
                 >
-                  <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <div className="absolute top-8 right-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
                     <button 
                       onClick={(e) => handleExport(proj, e)} 
-                      className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-orange-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                      className="w-9 h-9 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-orange-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
                       title="Экспорт (ZIP)"
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={(e) => duplicateProject(proj.id, e)} 
-                      className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                      className="w-9 h-9 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-blue-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
                       title="Дублировать"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={(e) => handleDeleteProject(proj.id, e)} 
-                      className="w-10 h-10 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-red-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+                      className="w-9 h-9 rounded-full bg-white border border-gray-100 text-gray-400 hover:text-red-500 flex items-center justify-center shadow-sm hover:scale-110 transition-all"
                       title="Удалить"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-orange-500 group-hover:text-white transition-all mb-12 shadow-sm border border-gray-100">
-                    <LayoutDashboard className="w-10 h-10" />
+                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-orange-500 group-hover:text-white transition-all mb-8 shadow-sm border border-gray-100">
+                    <LayoutDashboard className="w-8 h-8" />
                   </div>
-                  <h3 className="text-4xl font-bold text-[#2C3E50] mb-4 serif leading-tight">{proj.name}</h3>
-                  <div className="mt-auto pt-8 border-t border-gray-100 flex items-center justify-between">
+                  <h3 className="text-3xl font-bold text-[#2C3E50] mb-3 serif leading-tight">{proj.name}</h3>
+                  <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <History className="w-3 h-3 text-gray-400" />
                       <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{proj.steps.length} ШАГОВ</p>
