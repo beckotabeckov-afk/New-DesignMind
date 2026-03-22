@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
-import { collection, doc, getDocs, setDoc, deleteDoc, query, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
+import isEqual from 'lodash.isequal';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, orderBy, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from './services/firebase';
 import { useAuth } from './components/AuthProvider';
 import { QUIZ_STEPS as DEFAULT_STEPS } from '../constants';
@@ -89,8 +90,11 @@ const QuizPage: React.FC = () => {
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleteAllConfirm, setIsDeleteAllConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [projectImages, setProjectImages] = useState<Record<string, string>>({});
+  const updateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const pendingUpdatesRef = React.useRef<Partial<QuizProject>>({});
 
   useEffect(() => {
     if (!user || !currentProjectId) {
@@ -126,13 +130,8 @@ const QuizPage: React.FC = () => {
       })) as QuizProject[];
       
       if (loadedProjects.length === 0) {
-        // Create default project if none exist
-        const defaultProj: Omit<QuizProject, 'id'> = {
-          name: 'Новый дизайн-квиз',
-          createdAt: Date.now(),
-          steps: DEFAULT_STEPS
-        };
-        setDoc(doc(projectsRef, 'default'), defaultProj);
+        setProjects([]);
+        setIsInitialLoading(false);
       } else {
         setProjects(loadedProjects);
         setIsInitialLoading(false);
@@ -319,19 +318,38 @@ const QuizPage: React.FC = () => {
       const projectRef = doc(db, 'users', user.uid, 'projects', newId);
       const savePromise = setDoc(projectRef, newProj);
       
-      // Сохраняем изображения в подколлекцию
+      // Сохраняем изображения в подколлекцию используя пакетную запись (batch)
       const imagesRef = collection(db, 'users', user.uid, 'projects', newId, 'images');
-      const saveImagesPromise = Promise.all(imagesToSave.map(img => 
-        setDoc(doc(imagesRef, img.id), { id: img.id, data: img.data })
-      ));
+      
+      const saveImagesInBatches = async () => {
+        const { writeBatch } = await import('firebase/firestore');
+        const batchSize = 400; // Firestore limit is 500
+        for (let i = 0; i < imagesToSave.length; i += batchSize) {
+          const batch = writeBatch(db);
+          const chunk = imagesToSave.slice(i, i + batchSize);
+          chunk.forEach(img => {
+            batch.set(doc(imagesRef, img.id), { id: img.id, data: img.data });
+          });
+          await batch.commit();
+        }
+      };
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Превышено время ожидания сохранения в облако. Проверьте интернет-соединение или попробуйте еще раз.')), 60000)
+        setTimeout(() => reject(new Error('Превышено время ожидания сохранения в облако. Проверьте интернет-соединение или попробуйте еще раз.')), 120000) // Увеличиваем до 2 минут для больших архивов
       );
 
       try {
-        await Promise.race([Promise.all([savePromise, saveImagesPromise]), timeoutPromise]);
+        await Promise.race([Promise.all([savePromise, saveImagesInBatches()]), timeoutPromise]);
       } catch (saveErr: any) {
+        // Попытка очистки при ошибке
+        try {
+          await deleteDoc(projectRef);
+          // Подколлекции в Firestore не удаляются автоматически при удалении родителя, 
+          // но для "мусора" это хотя бы скроет битый проект из списка пользователя.
+        } catch (cleanupErr) {
+          console.error('Cleanup failed:', cleanupErr);
+        }
+
         const errMessage = saveErr?.message || String(saveErr);
         if (errMessage.includes('quota') || errMessage.includes('resource-exhausted')) {
           showToast('Суточный лимит базы данных (Firebase Quota) исчерпан. Попробуйте продолжить завтра.', 'error');
@@ -443,75 +461,200 @@ const QuizPage: React.FC = () => {
   const confirmDelete = async () => {
     if (!user || !deleteConfirmId) return;
     const idToDelete = deleteConfirmId;
-    setDeleteConfirmId(null); // Закрываем окно сразу для мгновенного отклика
+    setDeleteConfirmId(null); 
     try {
-      // 1. Удаляем изображения
+      const { writeBatch } = await import('firebase/firestore');
       const imagesRef = collection(db, 'users', user.uid, 'projects', idToDelete, 'images');
       const imagesSnapshot = await getDocs(imagesRef);
-      await Promise.all(imagesSnapshot.docs.map(d => deleteDoc(d.ref)));
       
-      // 2. Удаляем сам проект
-      await deleteDoc(doc(db, 'users', user.uid, 'projects', idToDelete));
+      const batch = writeBatch(db);
+      imagesSnapshot.docs.forEach(d => batch.delete(d.ref));
+      batch.delete(doc(db, 'users', user.uid, 'projects', idToDelete));
+      
+      await batch.commit();
       showToast('Проект удален');
     } catch (e) {
       showToast('Ошибка удаления', 'error');
     }
   };
 
-  const updateProjectData = async (updates: Partial<QuizProject>) => {
-    if (!user || !currentProjectId || !activeProject) return;
+  const confirmDeleteAll = async () => {
+    if (!user) return;
+    setIsDeleteAllConfirm(false);
+    setLoading(true);
+    setLoadingStage('Полная очистка базы данных...');
     try {
-      const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId);
+      const { writeBatch } = await import('firebase/firestore');
+      const projectsRef = collection(db, 'users', user.uid, 'projects');
+      const snapshot = await getDocs(projectsRef);
       
-      if (updates.steps) {
-        const imagesToSave: {id: string, data: string}[] = [];
-        const stepsToSave = JSON.parse(JSON.stringify(updates.steps)) as QuizStepType[];
-        
-        // Собираем ID всех опций, у которых есть изображение в текущем состоянии редактора
-        // Важно: "" означает, что изображение уже в подколлекции, его нельзя удалять
-        const optionIdsWithImages = new Set<string>();
-        
-        stepsToSave.forEach(step => {
-          step.options.forEach(opt => {
-            if (opt.image !== undefined && opt.image !== null && opt.image !== '') {
-              // Если это новая загрузка (data URL)
-              if (opt.image.startsWith('data:')) {
-                imagesToSave.push({ id: opt.id, data: opt.image });
-              }
-              optionIdsWithImages.add(opt.id);
-              opt.image = ""; // Очищаем в основном документе
-            } else if (opt.image === "") {
-              // Если это уже сохраненное изображение
-              optionIdsWithImages.add(opt.id);
-            }
-          });
-        });
-
-        // Сохраняем/обновляем изображения в подколлекции
-        const imagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
-        await Promise.all(imagesToSave.map(img => 
-          setDoc(doc(imagesRef, img.id), { id: img.id, data: img.data })
-        ));
-        
-        // Удаляем из Firestore те изображения, которые были удалены в редакторе
-        // (их ID больше нет в списке optionIdsWithImages)
+      const allDeletions: any[] = [];
+      for (const projectDoc of snapshot.docs) {
+        const imagesRef = collection(db, 'users', user.uid, 'projects', projectDoc.id, 'images');
         const imagesSnapshot = await getDocs(imagesRef);
-        await Promise.all(imagesSnapshot.docs.map(d => {
-          if (!optionIdsWithImages.has(d.id)) {
-            return deleteDoc(d.ref);
-          }
-          return Promise.resolve();
-        }));
+        imagesSnapshot.docs.forEach(d => allDeletions.push(d.ref));
+        allDeletions.push(projectDoc.ref);
+      }
 
-        updates.steps = stepsToSave;
+      // Process in batches of 400
+      const batchSize = 400;
+      for (let i = 0; i < allDeletions.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = allDeletions.slice(i, i + batchSize);
+        chunk.forEach(ref => batch.delete(ref));
+        await batch.commit();
+        setLoadingStage(`Удаление: ${Math.min(i + batchSize, allDeletions.length)}/${allDeletions.length}...`);
       }
       
-      await updateDoc(projectRef, updates);
+      showToast('Все проекты удалены');
     } catch (e) {
-      handleFirestoreError(e, 'update', `users/${user.uid}/projects/${currentProjectId}`);
+      showToast('Ошибка при удалении всех проектов', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const updateProjectData = async (updates: Partial<QuizProject>) => {
+    if (!user || !currentProjectId || !activeProject) return;
+
+    // Filter out updates that are already the same as current data
+    const realUpdates: Partial<QuizProject> = {};
+    let hasChanges = false;
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!isEqual((activeProject as any)[key], value)) {
+        (realUpdates as any)[key] = value;
+        hasChanges = true;
+      }
+    });
+
+    if (!hasChanges && Object.keys(pendingUpdatesRef.current).length === 0) return;
+
+    // Merge new updates with any pending updates
+    pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...realUpdates };
+
+    // Clear existing timeout
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+
+    // Set new timeout for 3 seconds to be more conservative with quotas
+    updateTimeoutRef.current = setTimeout(async () => {
+      const finalUpdates = { ...pendingUpdatesRef.current };
+      pendingUpdatesRef.current = {};
+      updateTimeoutRef.current = null;
+
+      if (Object.keys(finalUpdates).length === 0) return;
+
+      try {
+        const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId);
+        const batch = writeBatch(db);
+        
+        if (finalUpdates.steps) {
+          const imagesToSave: {id: string, data: string}[] = [];
+          const stepsToSave = JSON.parse(JSON.stringify(finalUpdates.steps)) as QuizStepType[];
+          const optionIdsWithImages = new Set<string>();
+          
+          stepsToSave.forEach(step => {
+            step.options.forEach(opt => {
+              if (opt.image !== undefined && opt.image !== null && opt.image !== '') {
+                if (opt.image.startsWith('data:')) {
+                  imagesToSave.push({ id: opt.id, data: opt.image });
+                }
+                optionIdsWithImages.add(opt.id);
+                opt.image = ""; 
+              } else if (opt.image === "") {
+                optionIdsWithImages.add(opt.id);
+              }
+            });
+          });
+
+          const imagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
+          
+          if (imagesToSave.length > 0) {
+            imagesToSave.forEach(img => {
+              batch.set(doc(imagesRef, img.id), { id: img.id, data: img.data });
+            });
+          }
+          
+          // Optimization: Only fetch and check images if we are actually saving new ones or if it's a large update
+          // This saves "Read" quota as well.
+          const imagesSnapshot = await getDocs(imagesRef);
+          imagesSnapshot.docs.forEach(d => {
+            if (!optionIdsWithImages.has(d.id)) {
+              batch.delete(d.ref);
+            }
+          });
+
+          finalUpdates.steps = stepsToSave;
+        }
+        
+        batch.update(projectRef, finalUpdates);
+        await batch.commit();
+      } catch (e) {
+        handleFirestoreError(e, 'update', `users/${user.uid}/projects/${currentProjectId}`);
+      }
+    }, 3000);
+  };
+
+  const flushUpdates = async () => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+      const finalUpdates = { ...pendingUpdatesRef.current };
+      pendingUpdatesRef.current = {};
+      updateTimeoutRef.current = null;
+
+      if (Object.keys(finalUpdates).length === 0) return;
+
+      try {
+        const { writeBatch } = await import('firebase/firestore');
+        const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId!);
+        const batch = writeBatch(db);
+
+        if (finalUpdates.steps) {
+          const imagesToSave: {id: string, data: string}[] = [];
+          const stepsToSave = JSON.parse(JSON.stringify(finalUpdates.steps)) as QuizStepType[];
+          const optionIdsWithImages = new Set<string>();
+          
+          stepsToSave.forEach(step => {
+            step.options.forEach(opt => {
+              if (opt.image && opt.image.startsWith('data:')) {
+                imagesToSave.push({ id: opt.id, data: opt.image });
+              }
+              if (opt.image !== undefined && opt.image !== null) {
+                optionIdsWithImages.add(opt.id);
+                opt.image = "";
+              }
+            });
+          });
+
+          const imagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId!, 'images');
+          if (imagesToSave.length > 0) {
+            imagesToSave.forEach(img => {
+              batch.set(doc(imagesRef, img.id), { id: img.id, data: img.data });
+            });
+          }
+          
+          const imagesSnapshot = await getDocs(imagesRef);
+          imagesSnapshot.docs.forEach(d => {
+            if (!optionIdsWithImages.has(d.id)) {
+              batch.delete(d.ref);
+            }
+          });
+          finalUpdates.steps = stepsToSave;
+        }
+        batch.update(projectRef, finalUpdates);
+        await batch.commit();
+      } catch (e) {
+        console.error('Flush failed:', e);
+      }
+    }
+  };
+
+  const handleExitEditor = async () => {
+    await flushUpdates();
+    setIsEditMode(false);
+  };
   const handleSelect = (value: string | string[]) => {
     if (!activeProject) return;
     const currentStep = activeProject.steps.find(s => s.id === currentStepId);
@@ -807,6 +950,15 @@ const QuizPage: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-4">
+              {projects.length > 0 && (
+                <button 
+                  onClick={() => setIsDeleteAllConfirm(true)} 
+                  className="bg-white text-red-500 border border-red-100 px-8 py-6 rounded-full font-bold hover:bg-red-50 transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>Удалить всё</span>
+                </button>
+              )}
               <label className="bg-white text-[#2C3E50] border border-[#E8E2D9] px-10 py-6 rounded-full font-bold hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer shadow-sm">
                 <Upload className="w-5 h-5" />
                 <span>Импорт (ZIP)</span>
@@ -928,6 +1080,39 @@ const QuizPage: React.FC = () => {
               </motion.div>
             </div>
           )}
+
+          {isDeleteAllConfirm && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center space-y-8"
+              >
+                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                  <Trash2 className="w-10 h-10" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-[#2C3E50] serif">Удалить ВСЕ проекты?</h3>
+                  <p className="text-gray-400 text-sm font-light">Вы потеряете все созданные квизы и изображения. Это действие необратимо.</p>
+                </div>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setIsDeleteAllConfirm(false)}
+                    className="flex-1 py-4 rounded-full border border-gray-100 text-gray-400 font-bold hover:bg-gray-50 transition-all"
+                  >
+                    Отмена
+                  </button>
+                  <button 
+                    onClick={confirmDeleteAll}
+                    className="flex-1 py-4 rounded-full bg-red-500 text-white font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                  >
+                    Удалить всё
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
       </div>
     );
@@ -955,7 +1140,7 @@ const QuizPage: React.FC = () => {
           <span className="text-[10px] uppercase tracking-[0.3em] font-black">Главная</span>
         </button>
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsEditMode(!isEditMode)} className={`text-[10px] font-black uppercase tracking-[0.2em] px-10 py-4 rounded-full border transition-all flex items-center gap-2 ${isEditMode ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50] border-gray-200'}`}>
+          <button onClick={handleExitEditor} className={`text-[10px] font-black uppercase tracking-[0.2em] px-10 py-4 rounded-full border transition-all flex items-center gap-2 ${isEditMode ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50] border-gray-200'}`}>
             <Settings className={`w-4 h-4 ${isEditMode ? 'animate-spin-slow' : ''}`} />
             {isEditMode ? 'Завершить' : 'Редактировать'}
           </button>
@@ -986,7 +1171,7 @@ const QuizPage: React.FC = () => {
                 quizName={activeProject?.name || ''}
                 onRename={(name) => updateProjectData({ name })}
                 onSave={(newSteps) => updateProjectData({ steps: newSteps })} 
-                onExit={() => setIsEditMode(false)}
+                onExit={handleExitEditor}
                 onExport={() => activeProject && handleExport(activeProject, { preventDefault: () => {}, stopPropagation: () => {} } as any)}
               />
             </motion.div>
