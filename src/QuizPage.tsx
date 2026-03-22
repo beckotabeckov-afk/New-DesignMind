@@ -47,8 +47,15 @@ const QuizPage: React.FC = () => {
   const { user } = useAuth();
 
   const handleFirestoreError = (error: unknown, operationType: string, path: string | null) => {
+    const message = error instanceof Error ? error.message : String(error);
+    
+    // Check for quota exceeded error
+    if (message.includes('quota') || message.includes('resource-exhausted')) {
+      showToast('Суточный лимит базы данных (Firebase Quota) исчерпан. Попробуйте продолжить завтра.', 'error');
+    }
+
     const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
       authInfo: {
         userId: auth.currentUser?.uid,
         email: auth.currentUser?.email,
@@ -112,47 +119,20 @@ const QuizPage: React.FC = () => {
     const projectsRef = collection(db, 'users', user.uid, 'projects');
     const q = query(projectsRef, orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const loadedProjects = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
       })) as QuizProject[];
       
       if (loadedProjects.length === 0) {
-        // Проверяем наличие пользовательского шаблона
-        const templateRef = doc(db, 'users', user.uid, 'templates', 'default');
-        const templateSnap = await getDocs(collection(db, 'users', user.uid, 'templates'));
-        const hasTemplate = templateSnap.docs.some(d => d.id === 'default');
-
-        if (hasTemplate) {
-          const templateDoc = templateSnap.docs.find(d => d.id === 'default');
-          const templateData = templateDoc?.data();
-          
-          const newProjId = `proj_${Date.now()}`;
-          const newProj: Omit<QuizProject, 'id'> = {
-            name: templateData?.name || 'Новый дизайн-квиз',
-            createdAt: Date.now(),
-            steps: templateData?.steps || DEFAULT_STEPS
-          };
-          
-          await setDoc(doc(projectsRef, newProjId), newProj);
-
-          // Копируем изображения из шаблона
-          const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
-          const newImagesRef = collection(db, 'users', user.uid, 'projects', newProjId, 'images');
-          const imagesSnap = await getDocs(templateImagesRef);
-          await Promise.all(imagesSnap.docs.map(d => 
-            setDoc(doc(newImagesRef, d.id), d.data())
-          ));
-        } else {
-          // Create default project if none exist
-          const defaultProj: Omit<QuizProject, 'id'> = {
-            name: 'Новый дизайн-квиз',
-            createdAt: Date.now(),
-            steps: DEFAULT_STEPS
-          };
-          setDoc(doc(projectsRef, 'default'), defaultProj);
-        }
+        // Create default project if none exist
+        const defaultProj: Omit<QuizProject, 'id'> = {
+          name: 'Новый дизайн-квиз',
+          createdAt: Date.now(),
+          steps: DEFAULT_STEPS
+        };
+        setDoc(doc(projectsRef, 'default'), defaultProj);
       } else {
         setProjects(loadedProjects);
         setIsInitialLoading(false);
@@ -180,36 +160,69 @@ const QuizPage: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    const zip = new JSZip();
-    
-    // Создаем копию проекта без тяжелых base64 данных в JSON
-    const cleanProj = JSON.parse(JSON.stringify(proj)) as QuizProject;
-    cleanProj.steps.forEach(step => {
-      step.options.forEach(opt => {
-        if (opt.image) {
-          // Очищаем поле image в JSON, так как картинка будет лежать отдельным файлом
-          opt.image = ""; 
-        }
-      });
-    });
+    if (!user) return;
 
-    zip.file('quiz.json', JSON.stringify(cleanProj, null, 2));
-    
-    // Добавляем изображения в ZIP отдельными файлами
-    proj.steps.forEach(step => {
-      step.options.forEach(opt => {
-        if (opt.image) {
-          const base64Data = opt.image.split(',')[1];
-          zip.file(`images/${opt.id}.jpg`, base64Data, { base64: true });
-        }
+    setLoading(true);
+    setLoadingStage('Подготовка к экспорту...');
+
+    try {
+      const zip = new JSZip();
+      
+      // 1. Получаем все изображения проекта из подколлекции
+      let allImages: Record<string, string> = {};
+      
+      // Если это текущий проект, берем из стейта, иначе запрашиваем из Firestore
+      if (proj.id === currentProjectId) {
+        allImages = projectImages;
+      } else {
+        const imagesRef = collection(db, 'users', user.uid, 'projects', proj.id, 'images');
+        const imagesSnapshot = await getDocs(imagesRef);
+        imagesSnapshot.docs.forEach(d => {
+          const data = d.data();
+          if (data.data) {
+            allImages[d.id] = data.data;
+          }
+        });
+      }
+
+      // 2. Создаем копию проекта без тяжелых base64 данных в JSON
+      const cleanProj = JSON.parse(JSON.stringify(proj)) as QuizProject;
+      cleanProj.steps.forEach(step => {
+        step.options.forEach(opt => {
+          // Если изображение есть в основном документе или в подколлекции
+          if (opt.image || allImages[opt.id]) {
+            opt.image = ""; 
+          }
+        });
       });
-    });
-    
-    const content = await zip.generateAsync({ type: 'blob' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(content);
-    link.download = `${proj.name}.zip`;
-    link.click();
+
+      zip.file('quiz.json', JSON.stringify(cleanProj, null, 2));
+      
+      // 3. Добавляем изображения в ZIP отдельными файлами
+      proj.steps.forEach(step => {
+        step.options.forEach(opt => {
+          // Берем изображение либо из объекта, либо из подколлекции
+          const imageData = opt.image || allImages[opt.id];
+          if (imageData && imageData.startsWith('data:')) {
+            const base64Data = imageData.split(',')[1];
+            zip.file(`images/${opt.id}.jpg`, base64Data, { base64: true });
+          }
+        });
+      });
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `${proj.name}.zip`;
+      link.click();
+      
+      showToast('Проект экспортирован');
+    } catch (err) {
+      console.error('Export error:', err);
+      showToast('Ошибка экспорта', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleZipImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,22 +273,22 @@ const QuizPage: React.FC = () => {
         }
 
         const baseName = filename.split('/').pop() || '';
-        const idMatch = baseName.match(/(opt_[^.]+)\.(jpg|jpeg|png|webp)/i);
+        const dotIndex = baseName.lastIndexOf('.');
+        if (dotIndex === -1) continue;
         
-        if (idMatch) {
-          const optId = idMatch[1];
-          if (optionMap[optId]) {
-            const base64 = await zipEntry.async('base64');
-            const ext = idMatch[2].toLowerCase();
-            const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-            const fullBase64 = `data:${mimeType};base64,${base64}`;
-            
-            // Сжимаем изображение перед сохранением в проект
-            setLoadingStage(`Сжатие изображения ${processedFiles}/${totalFiles}...`);
-            const resized = await resizeImage(fullBase64, 1024); // Увеличиваем до 1024px
-            optionMap[optId].image = resized;
-            updatedCount++;
-          }
+        const optId = baseName.substring(0, dotIndex);
+        const ext = baseName.substring(dotIndex + 1).toLowerCase();
+        
+        if (['jpg', 'jpeg', 'png', 'webp'].includes(ext) && optionMap[optId]) {
+          const base64 = await zipEntry.async('base64');
+          const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+          const fullBase64 = `data:${mimeType};base64,${base64}`;
+          
+          // Сжимаем изображение перед сохранением в проект
+          setLoadingStage(`Сжатие изображения ${processedFiles}/${totalFiles}...`);
+          const resized = await resizeImage(fullBase64, 1024); // Увеличиваем до 1024px
+          optionMap[optId].image = resized;
+          updatedCount++;
         }
       }
 
@@ -313,12 +326,18 @@ const QuizPage: React.FC = () => {
       ));
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Превышено время ожидания сохранения в облако. Проверьте интернет-соединение.')), 30000)
+        setTimeout(() => reject(new Error('Превышено время ожидания сохранения в облако. Проверьте интернет-соединение или попробуйте еще раз.')), 60000)
       );
 
       try {
         await Promise.race([Promise.all([savePromise, saveImagesPromise]), timeoutPromise]);
-      } catch (saveErr) {
+      } catch (saveErr: any) {
+        const errMessage = saveErr?.message || String(saveErr);
+        if (errMessage.includes('quota') || errMessage.includes('resource-exhausted')) {
+          showToast('Суточный лимит базы данных (Firebase Quota) исчерпан. Попробуйте продолжить завтра.', 'error');
+          setLoading(false);
+          return;
+        }
         handleFirestoreError(saveErr, 'write', `users/${user.uid}/projects/${newId}`);
       }
 
@@ -355,33 +374,16 @@ const QuizPage: React.FC = () => {
   const createNewQuiz = async () => {
     if (!user || isProcessing) return;
     setIsProcessing(true);
+    const newId = `proj_${Date.now()}`;
+    const newProj: Omit<QuizProject, 'id'> = {
+      name: 'Новый дизайн-квиз',
+      createdAt: Date.now(),
+      steps: DEFAULT_STEPS
+    };
     try {
-      const projectsRef = collection(db, 'users', user.uid, 'projects');
-      const templateSnap = await getDocs(collection(db, 'users', user.uid, 'templates'));
-      const templateDoc = templateSnap.docs.find(d => d.id === 'default');
-      const templateData = templateDoc?.data();
-
-      const newId = `proj_${Date.now()}`;
-      const newProj: Omit<QuizProject, 'id'> = {
-        name: templateData?.name || 'Новый дизайн-квиз',
-        createdAt: Date.now(),
-        steps: templateData?.steps || DEFAULT_STEPS
-      };
-
-      await setDoc(doc(projectsRef, newId), newProj);
-
-      if (templateData) {
-        // Копируем изображения из шаблона
-        const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
-        const newImagesRef = collection(db, 'users', user.uid, 'projects', newId, 'images');
-        const imagesSnap = await getDocs(templateImagesRef);
-        await Promise.all(imagesSnap.docs.map(d => 
-          setDoc(doc(newImagesRef, d.id), d.data())
-        ));
-      }
-
+      await setDoc(doc(db, 'users', user.uid, 'projects', newId), newProj);
       setCurrentProjectId(newId);
-      setCurrentStepId((templateData?.steps || DEFAULT_STEPS)[0].id);
+      setCurrentStepId(DEFAULT_STEPS[0].id);
       setSelections({});
       setResult(null);
       setIsEditMode(true);
@@ -456,7 +458,7 @@ const QuizPage: React.FC = () => {
     }
   };
 
-  const updateProjectData = async (updates: Partial<QuizProject>, isTemplate?: boolean) => {
+  const updateProjectData = async (updates: Partial<QuizProject>) => {
     if (!user || !currentProjectId || !activeProject) return;
     try {
       const projectRef = doc(db, 'users', user.uid, 'projects', currentProjectId);
@@ -505,33 +507,6 @@ const QuizPage: React.FC = () => {
       }
       
       await updateDoc(projectRef, updates);
-
-      // Если это сохранение как шаблона
-      if (isTemplate) {
-        const templateRef = doc(db, 'users', user.uid, 'templates', 'default');
-        const templateData = {
-          name: updates.name || activeProject.name,
-          steps: updates.steps || activeProject.steps,
-          updatedAt: Date.now()
-        };
-        await setDoc(templateRef, templateData);
-
-        // Копируем изображения в подколлекцию шаблона
-        const templateImagesRef = collection(db, 'users', user.uid, 'templates', 'default', 'images');
-        const currentImagesRef = collection(db, 'users', user.uid, 'projects', currentProjectId, 'images');
-        const imagesSnapshot = await getDocs(currentImagesRef);
-        
-        // Очищаем старые изображения шаблона
-        const oldTemplateImages = await getDocs(templateImagesRef);
-        await Promise.all(oldTemplateImages.docs.map(d => deleteDoc(d.ref)));
-
-        // Копируем новые
-        await Promise.all(imagesSnapshot.docs.map(d => 
-          setDoc(doc(templateImagesRef, d.id), d.data())
-        ));
-
-        showToast('Шаблон обновлен');
-      }
     } catch (e) {
       handleFirestoreError(e, 'update', `users/${user.uid}/projects/${currentProjectId}`);
     }
@@ -1010,7 +985,7 @@ const QuizPage: React.FC = () => {
                 steps={activeProject?.steps || []} 
                 quizName={activeProject?.name || ''}
                 onRename={(name) => updateProjectData({ name })}
-                onSave={(newSteps, isTemplate) => updateProjectData({ steps: newSteps }, isTemplate)} 
+                onSave={(newSteps) => updateProjectData({ steps: newSteps })} 
                 onExit={() => setIsEditMode(false)}
                 onExport={() => activeProject && handleExport(activeProject, { preventDefault: () => {}, stopPropagation: () => {} } as any)}
               />
